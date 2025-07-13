@@ -2,7 +2,6 @@
 import time
 import queue
 import sys
-import os
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from serial.tools import list_ports
 
@@ -211,8 +210,9 @@ if __name__ == "__main__":
 """ 
 options for reading keyboard (see https://stackoverflow.com/questions/24072790/how-to-detect-key-presses):
 
-pynput: Uses x-server, auth fails when running as root
-evdev: No Windows support. Causes keyboard reboot with rapid typing in Linux
-sshkeyboard: Does not support multiple keypress (will consider one released when the other is pressed) and does not read ctrl, alt, etc
-keyboard: Requires root access just to call the function, regardless of permissions on keyboard device. Does not hook keyboard globally.
+pynput: Uses x-server and was failing to connect as root. Resolved this with changes to run.sh and install_as_service
+Other options conisdered, all had show-stopping drawbacks:
+- evdev: No Windows support. Causes keyboard reboot with rapid typing in Linux
+- sshkeyboard: Does not support multiple keypresses (will consider one released when the other is pressed) and does not read ctrl, alt, etc
+- keyboard: Requires root access just to call the library, regardless of permissions on keyboard device. Does not hook keyboard globally.
 """
