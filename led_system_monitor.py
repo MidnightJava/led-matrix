@@ -4,7 +4,6 @@ import queue
 import sys
 import os
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-import serial
 from serial.tools import list_ports
 
 
@@ -15,9 +14,7 @@ from monitors import CPUMonitor, MemoryMonitor, BatteryMonitor, DiskMonitor, Net
 
 # External Dependencies
 import numpy as np
-from pynput import keyboard
 from pynput.keyboard import Key, Listener
-import evdev
 
 def discover_led_devices():
     locations = []
@@ -29,9 +26,6 @@ def discover_led_devices():
         return sorted(locations, key = lambda x: x[0])
     except Exception as e:
         print(f"An Exception occured while tring to locate LED Matrix devices. {e}")
-        
-device = evdev.InputDevice('/dev/input/event7')
-        
 
 
 def main(args):    
@@ -137,8 +131,6 @@ def main(args):
         on_release=on_release):
         while True:
             try:
-                keys = device.active_keys(verbose=True)
-                print(keys)
                 screen_brightness = get_monitor_brightness()
                 background_value = int(screen_brightness * (max_background_brightness - min_background_brightness) + min_background_brightness)
                 foreground_value = int(screen_brightness * (max_foreground_brightness - min_foreground_brightness) + min_foreground_brightness)
@@ -215,3 +207,12 @@ if __name__ == "__main__":
     print(f"bottom right {args.bottom_right}")
     
     main(args)
+    
+""" 
+options for reading keyboard (see https://stackoverflow.com/questions/24072790/how-to-detect-key-presses):
+
+pynput: Uses x-server, auth fails when running as root
+evdev: No Windows support. Causes keyboard reboot with rapid typing in Linux
+sshkeyboard: Does not support multiple keypress (will consider one released when the other is pressed) and does not read ctrl, alt, etc
+keyboard: Requires root access just to call the function, regardless of permissions on keyboard device. Does not hook keyboard globally.
+"""
