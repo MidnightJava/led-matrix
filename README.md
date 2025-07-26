@@ -2,6 +2,28 @@
 
 This software is intended for use on a Framework 16 laptop with LED Matrix Panels installed. It's a clone of the [LED System Monitor](https://code.karsttech.com/jeremy/FW_LED_System_Monitor.git) project, with certain modifications and extensions applied.
 
+## Compatibility
+
+**Hardware:** Framework 16 laptops with LED Matrix Panels  
+**Operating Systems:** Linux distributions (Ubuntu, Fedora, NixOS, Debian, CentOS, RHEL, and others)  
+**Dependencies:** Python 3.7+ with numpy, psutil, pyserial, and evdev
+
+## Quick Start
+
+For most users, the fastest way to get started:
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd led-matrix-monitoring
+
+# Run with automatic dependency installation
+chmod +x run.sh
+./run.sh
+```
+
+The `run.sh` script will automatically detect your Linux distribution and install the required dependencies.
+
 ## Original Capabilities
 Display system performance characteristics in real-time
 * Top Left: CPU utilization
@@ -20,13 +42,42 @@ Display system performance characteristics in real-time
 * Plugin framework supports simplified development of addiitonal LED Panel applications
 * Automatic detection of left and right LED panels
 ## Installation
-* Install [PyEnv](https://github.com/pyenv/pyenv)  
-* Any other python virtual environment package may be used. Commands below work with PyEnv.
+
+### Option 1: System Package Installation (Recommended)
+
+#### For Ubuntu/Debian users:
+```bash
+sudo apt update
+sudo apt install -y python3-numpy python3-psutil python3-serial python3-evdev
+cd led-matrix-monitoring
+python3 led_system_monitor.py
 ```
-cd led-matrix
+
+#### For Fedora users:
+```bash
+sudo dnf install -y python3-numpy python3-psutil python3-pyserial python3-evdev
+cd led-matrix-monitoring
+python3 led_system_monitor.py
+```
+
+#### For NixOS users:
+```bash
+# Using the Nix flake (recommended)
+nix run github:your-repo/led-matrix-monitoring
+
+# Or build locally
+nix build
+./result/bin/led-matrix-monitor
+```
+
+### Option 2: Python Virtual Environment
+* Install [PyEnv](https://github.com/pyenv/pyenv) or any other python virtual environment package
+* Commands below work with PyEnv:
+```bash
+cd led-matrix-monitoring
 pyenv install 3.11
-pyenv virtualenv 3.11 3.11
-pyenv activate
+pyenv virtualenv 3.11 led-matrix-env
+pyenv activate led-matrix-env
 pip install -r requirements.txt
 ```
 ## Run
