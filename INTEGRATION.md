@@ -40,7 +40,7 @@ In `/home/tim/zaneyos/flake.nix`, add this as an input:
 
 ## Step 2: Add the module to the amd profile
 
-In `/home/tim/zaneyos/profiles/amd/default.nix`:
+In `$HOME/zaneyos/profiles/amd/default.nix`:
 
 ```nix
 {host, inputs, ...}: { # Add inputs parameter
@@ -61,7 +61,7 @@ In `/home/tim/zaneyos/profiles/amd/default.nix`:
 
 ## Step 3: Add the package to host-packages.nix
 
-In `/home/tim/zaneyos/hosts/sakai/host-packages.nix`, add the package:
+In `$HOME/zaneyos/hosts/sakai/host-packages.nix`, add the package:
 
 ```nix
 { inputs, pkgs, ... }:
@@ -106,7 +106,7 @@ services.led-matrix-monitoring = {
 
 ### Option B: Create a dedicated led-matrix service file
 
-Create `/home/tim/zaneyos/modules/core/led-matrix.nix`:
+Create `$HOME/zaneyos/modules/core/led-matrix.nix`:
 
 ```nix
 {...}: {
@@ -127,7 +127,7 @@ Create `/home/tim/zaneyos/modules/core/led-matrix.nix`:
 }
 ```
 
-Then add it to `/home/tim/zaneyos/modules/core/default.nix`:
+Then add it to `$HOME/zaneyos/modules/core/default.nix`:
 
 ```nix
 {inputs, ...}: {
