@@ -67,11 +67,99 @@ python3 led_system_monitor.py
 #### For NixOS users:
 ```bash
 # Using the Nix flake (recommended)
-nix run github:your-repo/led-matrix-monitoring
+nix run github:timoteuszelle/led-matrix
 
 # Or build locally
 nix build
 ./result/bin/led-matrix-monitor
+```
+
+#### NixOS System Integration
+
+For NixOS users who want to run LED matrix monitoring as a system service, additional configuration is required:
+
+**1. Add to your flake.nix inputs:**
+```nix
+{
+  inputs = {
+    # ... other inputs
+    led-matrix-monitoring.url = "github:timoteuszelle/led-matrix";
+  };
+}
+```
+
+**2. Import the module in your NixOS configuration:**
+```nix
+{
+  imports = [
+    inputs.led-matrix-monitoring.nixosModules.led-matrix-monitoring
+  ];
+}
+```
+
+**3. Enable and configure the service:**
+```nix
+services.led-matrix-monitoring = {
+  enable = true;
+  topLeft = "cpu";
+  bottomLeft = "mem-bat";
+  topRight = "disk";
+  bottomRight = "net";
+  disableKeyListener = true;  # Recommended for system service
+  user = "your-username";
+};
+```
+
+**4. Add systemd service environment override (Required):**
+
+The service needs access to the display server. Add this to your NixOS configuration:
+
+```nix
+# Override the LED matrix monitoring service to add DISPLAY environment variable
+systemd.services.led-matrix-monitoring = {
+  environment = {
+    DISPLAY = ":0";  # Adjust if using different display
+  };
+  serviceConfig = {
+    # Ensure the service waits for the graphical session
+    After = [ "graphical-session.target" ];
+    Wants = [ "graphical-session.target" ];
+  };
+};
+```
+
+**5. Rebuild your system:**
+```bash
+sudo nixos-rebuild switch
+```
+
+**Troubleshooting NixOS Service Issues:**
+
+If the service fails to start with display connection errors:
+
+```bash
+# Check service status
+systemctl status led-matrix-monitoring
+
+# View logs
+journalctl -u led-matrix-monitoring -f
+
+# Common error: "failed to acquire X connection: Bad display name"
+# Solution: Ensure DISPLAY environment variable is set in service override
+```
+
+**Alternative: User Service (Advanced)**
+
+For more complex setups, you can run as a user service instead:
+
+```bash
+# Copy the service to user directory
+cp /etc/systemd/system/led-matrix-monitoring.service ~/.config/systemd/user/
+
+# Enable and start user service
+systemctl --user daemon-reload
+systemctl --user enable led-matrix-monitoring
+systemctl --user start led-matrix-monitoring
 ```
 
 ### Option 2: Python Virtual Environment
