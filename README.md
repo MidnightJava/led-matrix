@@ -67,7 +67,7 @@ python3 led_system_monitor.py
 #### For NixOS users:
 ```bash
 # Using the Nix flake (recommended)
-nix run github:your-repo/led-matrix-monitoring
+nix run github:timoteuszelle/led-matrix
 
 # Or build locally
 nix build
@@ -83,7 +83,7 @@ For NixOS users who want to run LED matrix monitoring as a system service, addit
 {
   inputs = {
     # ... other inputs
-    led-matrix-monitoring.url = "github:your-repo/led-matrix-monitoring";
+    led-matrix-monitoring.url = "github:timoteuszelle/led-matrix";
   };
 }
 ```
