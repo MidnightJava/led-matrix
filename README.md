@@ -52,7 +52,7 @@ The `build_and_install.sh` script will automatically detect your Linux distribut
  * Automatic device and keyboard detection
  * Snapshot app
 ## Installation
-
+In case you want to develop on the code (otherwise follow the *Quick Start* above).
 ### System Package and Python Library Installation (For running manually, e.g. in an IDE)
 
 #### For Ubuntu/Debian users:
