@@ -1,6 +1,7 @@
 from statistics import mean
 import psutil
 import numpy as np
+from patterns import letters_small
 
 # Reference for fractional measure of sensor temps (in degrees Celcius)
 TEMP_REF = 120
@@ -88,38 +89,17 @@ app_funcs = [
 # These items will be dynamically imported by drawing.py
 
 id_patterns = {
-    "temp": np.array([
-        [0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 1, 1, 1, 0, 0],
-        [0, 0, 0, 1, 0, 0, 0],
-        [0, 0, 0, 1, 0, 0, 0],
-        [0, 0, 0, 1, 0, 0, 0],
-        [0, 1, 1, 0, 1, 1, 0],
-        [0, 1, 0, 1, 0, 1, 0],
-        [0, 1, 0, 0, 0, 1, 0],
-        [0, 1, 0, 0, 0, 1, 0],
-        [0, 0, 1, 1, 1, 0, 0],
-        [0, 0, 1, 0, 0, 1, 0],
-        [0, 0, 1, 1, 1, 0, 0],
-        [0, 0, 1, 0, 0, 0, 0],
-        [0, 0, 1, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0],
-    ]).T,
-    "fan": np.array([
-        [0, 0, 1, 1, 1, 1, 0],
-        [0, 0, 1, 0, 0, 0, 0],
-        [0, 0, 1, 1, 1, 0, 0],
-        [0, 0, 1, 0, 0, 0, 0],
-        [0, 0, 1, 0, 0, 0, 0],
-        [0, 0, 0, 1, 1, 0, 0],
-        [0, 0, 1, 0, 0, 1, 0],
-        [0, 0, 1, 1, 1, 1, 0],
-        [0, 0, 1, 0, 0, 1, 0],
-        [0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 1, 0, 0, 1, 0],
-        [0, 0, 1, 1, 0, 1, 0],
-        [0, 0, 1, 0, 1, 1, 0],
-        [0, 0, 1, 0, 0, 1, 0],
-        [0, 0, 0, 0, 0, 0, 0],
-    ]).T
+    "temp": np.concatenate((
+        letters_small["T"],
+        np.zeros((1,7)),
+        letters_small["M"],
+        np.zeros((1,7)),
+        letters_small["P"])).T,
+    "fan": np.concatenate((
+        letters_small["F"],
+        np.zeros((1,7)),
+        letters_small["A"],
+        np.zeros((1,7)),
+        letters_small["N"],
+        np.zeros((1,7)))).T,
 }

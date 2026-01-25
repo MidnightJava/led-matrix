@@ -8,7 +8,6 @@ import os
 import re
 import json
 import logging
-from pathlib import Path
 
 # Internal Dependencies
 from commands import Commands, send_command, do_animate
@@ -279,6 +278,8 @@ def init_device(location = "1-3.2"):
             if device.location and device.location.startswith(location):
                 s = serial.Serial(device.device, 115200)
                 return s
+        log.error('Error getting comm ports for LED panel USB devices')
+        sys.exit(1)
     except Exception as e:
         print(e)
 

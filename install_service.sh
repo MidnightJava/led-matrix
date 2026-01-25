@@ -17,7 +17,7 @@ User=led_mon
 Group=led_mon
 Environment=DISPLAY=${dsp} XAUTHORITY=${xauthority} WAYLAND_DISPLAY=${wayland_display} LOG_LEVEL=debug
 Restart=always
-ExecStartPre=/usr/bin/xhost +SI:localuser:led_mon
+# ExecStartPre=/usr/bin/xhost +SI:localuser:led_mon
 ExecStart=/usr/local/bin/led_mon
 
 StandardOutput=journal

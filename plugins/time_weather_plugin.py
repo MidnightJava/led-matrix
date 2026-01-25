@@ -8,8 +8,7 @@ from iplocate import IPLocateClient
 import numpy as np
 from functools import cache
 from threading import Timer
-from patterns import icons, letters
-import math
+from patterns import icons, letters_5_x_6
 import logging
 
 log = logging.getLogger(__name__)
@@ -91,6 +90,7 @@ class WeatherMonitor:
         forecast = args_dict.get('forecast', False)
         forecast_day = args_dict.get('forecast_day', 1)
         forecast_hour = args_dict.get('forecast_hour', 12)
+        mist_like = ['Mist', 'Fog', 'Dust', 'Haze', 'Smoke', 'Squall', 'Ash', 'Sand', 'Tornado']
 
         try:
             if zip_info:
@@ -115,11 +115,13 @@ class WeatherMonitor:
                     if dt.date() == target_date and dt.hour >= forecast_hour:
                         temp = fc['main']['temp']
                         cond = fc['weather'][0]['main']
+                        if cond in mist_like: cond = 'mist-like'
                         log.debug(f"Forecast weather: {fc['dt_txt']} {temp} degC, {cond}")
                         _forecast = [temp, temp_symbol, cond]
                         return _forecast
                 temp = forecast['list'][-1]['main']['temp']
                 cond = forecast['list'][-1]['weather'][0]['main']
+                if cond in mist_like: cond = 'mist-like'
                 _forecast = [temp, temp_symbol, cond]
                 log.debug(f"Forecast weather: {fc['dt_txt']} {temp } {temp_symbol}, {cond}")
                 return _forecast
@@ -127,6 +129,7 @@ class WeatherMonitor:
                 current = requests.get(f"http://api.openweathermap.org/data/2.5/weather?lat={loc[0]}&lon={loc[1]}&appid={weather_api_key}&units={units}").json()
 
                 _current = [current['main']['temp'], temp_symbol, current['weather'][0]['main']]
+                if _current[2] in mist_like: _current[2] = 'mist-like'
                 log.debug(f"Current weather: {_current}")
                 return _current
         except Exception as e:
@@ -212,7 +215,7 @@ app_funcs = [
 # These items will be dynamically imported by drawing.py
 
 id_patterns = {
-    "time": np.concatenate((np.zeros((2,9)), letters["T"], np.zeros((2,9)), letters["I"], np.zeros((2,9)),letters["M"], np.zeros((2,9)), letters["E"], np.zeros((2,9)))).T,
-    "weather_current": np.concatenate((np.zeros((2,9)), letters["W"], np.zeros((2,9)), letters["T"], np.zeros((2,9)),letters["R"], np.zeros((2,9)), letters["C"], np.zeros((2,9)))).T,
-    "weather_forecast": np.concatenate((np.zeros((2,9)), letters["W"], np.zeros((2,9)), letters["T"], np.zeros((2,9)),letters["R"], np.zeros((2,9)), letters["F"], np.zeros((2,9)))).T
+    "time": np.concatenate((np.zeros((2,9)), letters_5_x_6["T"], np.zeros((2,9)), letters_5_x_6["I"], np.zeros((2,9)),letters_5_x_6["M"], np.zeros((2,9)), letters_5_x_6["E"], np.zeros((2,9)))).T,
+    "weather_current": np.concatenate((np.zeros((2,9)), letters_5_x_6["W"], np.zeros((2,9)), letters_5_x_6["T"], np.zeros((2,9)),letters_5_x_6["R"], np.zeros((2,9)), letters_5_x_6["C"], np.zeros((2,9)))).T,
+    "weather_forecast": np.concatenate((np.zeros((2,9)), letters_5_x_6["W"], np.zeros((2,9)), letters_5_x_6["T"], np.zeros((2,9)),letters_5_x_6["R"], np.zeros((2,9)), letters_5_x_6["F"], np.zeros((2,9)))).T
 }
