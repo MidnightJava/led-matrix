@@ -10,10 +10,9 @@
             "name": "Python: Current File",
             "type": "debugpy",
             "request": "launch",
-            "program": "${file}",
+            "program": "${workspaceFolder}/led_system_monitor.py",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": "-la"
         }
     ]
 }
