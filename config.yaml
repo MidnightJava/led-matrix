@@ -21,12 +21,13 @@ quadrants:
     name: time
     # duration: 300
     scope: panel
+    # args must be mappings, not lists
     args:
-      - fmt_24_hour: false
+      fmt_24_hour: false
       # Enter a timeone string from the IANA time zone database, e.g. "America/New_York" or "GMT"
       # See https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#Time_zone_abbreviations
       # If omitted or no value, your locale timezone will be used
-      - timezone:
+      timezone:
   - app:
     name: cpu
     # duration: 30
@@ -40,28 +41,28 @@ quadrants:
     scope: panel
     # Snapshot args: file name, file path, panel
     args:
-      - file: zigzag.json
-      - path: snapshot_files/left
-      - panel: left
+      file: zigzag.json
+      path: snapshot_files/left
+      panel: left
   top-right:
   - app:
     name: weather
     # duration: 300
     scope: panel
     args:
-      - zip_info: ["20191", "US"]
-      - lat_lon: [38.9318, -77.3527]
+      zip_info: ["20191", "US"]
+      lat_lon: [38.9318, -77.3527]
       # metric (Celsius), imperial (Farenheit), or standard (Kelvin). Default is metric
-      - units: imperial
+      units: imperial
       # If omitted, blank or false, show current weather
-      - forecast: false
+      forecast: false
       # Day offset for forecast (max 5, default 1)
-      - forecast_day: 1
+      forecast_day: 1
       # Hour offset (GMT time) for forecast on selected day. One of 0, 3, 6, 9, 12, 15, 18, 21. default is 12
       # If selected time is more than 5 * 24 hours from present time, the latest available forecast will be shown
-      - forecast_hour: 12
+      forecast_hour: 12
       # Override the key used to display the app ID. This means is forecast is true, use weather_forecast, otherwise use weather_current
-      - id_key_override: [forecast, weather_forecast, weather_current]
+      id_key_override: [forecast, weather_forecast, weather_current]
   - app:
     name: temp
     # duration: 30
@@ -73,9 +74,9 @@ quadrants:
     # duration: 5
     scope: panel
     args:
-      - file: every-third-row.json
-      - path: snapshot_files/right
-      - panel: right
+      file: every-third-row.json
+      path: snapshot_files/right
+      panel: right
   bottom-right:
   - app:
     name: noop1

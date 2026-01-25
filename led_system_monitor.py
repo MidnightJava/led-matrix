@@ -219,8 +219,8 @@ def app(args, base_apps, plugin_apps):
         draw_app(arg, grid, last_network_upload, foreground_value, bar_x_offset=1, y=idx)
         draw_app(arg, grid, last_network_download, foreground_value, bar_x_offset=5, y=idx)
         
-    def draw_snap(arg, grid, foreground_value, idx, file, snap_path, panel):
-        draw_app(arg, grid, foreground_value, file, snap_path, panel)
+    def draw_snap(arg, grid, foreground_value, idx, **kwargs):
+        draw_app(arg, grid, foreground_value, **kwargs)
         
     app_functions = {
         "cpu": draw_cpu,
@@ -388,16 +388,11 @@ def app(args, base_apps, plugin_apps):
                     try:
                         func = app_functions[arg_name]
                         func_args = [arg_name, grid, foreground_value, idx]
+                        kwargs = {}
                         if 'args' in arg:
-                            # Args must be hashable, to support function caching, so convert any list values in dicts to tuples
-                            args = []
-                            for _arg in arg.get("args", []):
-                                if isinstance(_arg, dict):
-                                    args.append({key: tuple(value) if isinstance(value, list) else value for key, value in _arg.items()})
-                                else:
-                                    args.append(_arg)
-                            func_args.extend(args)
-                        func(*func_args)
+                            #Args must be hashable, to support function caching, so convert any list values in dicts to tuples
+                            kwargs = {k: tuple(v) if isinstance(v, list) else v for k, v in arg['args'].items()}
+                        func(*func_args, **kwargs)
                         animate = arg.get("animate", False)
                     except KeyError:
                         log.error(f"Unrecognized app {arg_name} for {loc} {panel}")

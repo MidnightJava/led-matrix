@@ -95,15 +95,15 @@ def draw_bar(grid, bar_ratio, bar_value, bar_x_offset = 1, y=0):
             grid[bar_x_offset+i,1:1+pixels_col] = bar_value
             
 warned = set()
-def draw_snapshot(grid, fill_value, *args):
+def draw_snapshot(grid, fill_value, **kwargs):
     global warned
-    args_dict = {}
-    for arg in args:
-        if isinstance(arg, dict):
-            args_dict.update(arg)
-    path = args_dict.get('path', None)
-    panel = args_dict.get('panel;, None')
-    file = args_dict.get('file', None)
+    # args_dict = {}
+    # for arg in args:
+    #     if isinstance(arg, dict):
+    #         args_dict.update(arg)
+    path = kwargs.get('path', None)
+    panel = kwargs.get('panel;, None')
+    file = kwargs.get('file', None)
     current_dir = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(current_dir, path)
     subdirs = [ f.name for f in os.scandir(path) if f.is_dir() and f.name in ['left', 'right']]
@@ -249,14 +249,12 @@ def draw_ids(grid, top, bottom, fill_value, targs=None, bargs=None):
     
 # Draw the ID of the app currently assigned to the full panel
 def draw_id(grid, id, fill_value, args=None):
-    if isinstance(args, list):
-        merged_dict = {k: v for d in args if isinstance(d, dict) for k, v in d.items()}
-        id_override = merged_dict.get('id_key_override', None)
-        if id_override:
-            if merged_dict.get(id_override[0], False):
-                id = id_override[1]
-            else:
-                id = id_override[2]
+    id_override = args.get('id_key_override', None)
+    if id_override:
+        if args.get(id_override[0], False):
+            id = id_override[1]
+        else:
+            id = id_override[2]
     fill_grid = id_patterns[id]
     grid[:,:] = fill_grid * fill_value
 
