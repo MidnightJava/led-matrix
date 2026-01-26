@@ -16,8 +16,9 @@ Type=simple
 User=led_mon
 Group=led_mon
 Environment=DISPLAY=${dsp} XAUTHORITY=${xauthority} WAYLAND_DISPLAY=${wayland_display} LOG_LEVEL=debug
+EnvironmentFile=/etc/led_mon/led_mon.env
 Restart=always
-ExecStartPre=/usr/bin/xhost +SI:localuser:led_mon
+# ExecStartPre=/usr/bin/xhost +SI:localuser:led_mon
 ExecStart=/usr/local/bin/led_mon
 
 StandardOutput=journal
@@ -31,6 +32,11 @@ if ! id -u "led_mon" &>/dev/null 2>&1; then
     sudo useradd   --system   --home /var/lib/led_mon  -G input,dialout --shell /usr/sbin/nologin   led_mon
 fi
 
+sudo mkdir -p /etc/led_mon
+sudo chown -R root /etc/led_mon
+# Copy .env-example to .env and set API Key env variable
+sudo cp .env /etc/led_mon/led_mon.env
+sudo chmod -R 755 /etc/led_mon
 sudo mkdir -p /opt/led_mon
 sudo chown -R root /opt/led_mon
 sudo chmod -R 755 /opt/led_mon

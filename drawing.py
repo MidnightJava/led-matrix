@@ -8,11 +8,10 @@ import os
 import re
 import json
 import logging
-from pathlib import Path
 
 # Internal Dependencies
 from commands import Commands, send_command, do_animate
-from patterns import lightning_bolt_bot, lightning_bolt_top, lookup_table, id_patterns
+from patterns import lightning_bolt_bot, lightning_bolt_top, lookup_table, id_patterns, symbols, numerals, icons
 
 # External Dependencies
 import numpy as np
@@ -96,8 +95,15 @@ def draw_bar(grid, bar_ratio, bar_value, bar_x_offset = 1, y=0):
             grid[bar_x_offset+i,1:1+pixels_col] = bar_value
             
 warned = set()
-def draw_snapshot(grid, fill_value, file, path, panel):
+def draw_snapshot(grid, fill_value, **kwargs):
     global warned
+    # args_dict = {}
+    # for arg in args:
+    #     if isinstance(arg, dict):
+    #         args_dict.update(arg)
+    path = kwargs.get('path', None)
+    panel = kwargs.get('panel;, None')
+    file = kwargs.get('file', None)
     current_dir = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(current_dir, path)
     subdirs = [ f.name for f in os.scandir(path) if f.is_dir() and f.name in ['left', 'right']]
@@ -110,6 +116,22 @@ def draw_snapshot(grid, fill_value, file, path, panel):
         if not file in warned:
             print(f"File {file} not found")
             warned.add(file)
+
+def draw_chars(grid: np.ndarray, chars: list[str], fill_value: int, y: int):
+    char_map = {**numerals, **symbols, **icons}
+    grid = grid.T
+    for char in chars:
+        if char in char_map:
+            try:
+                l = len(char_map[char])
+                # For three-digit temps (e.g. with Kelvin) only part of the condition icon can be rendered
+                grid[y:y+l, :] = char_map[char][:34-y] * fill_value
+                y += l + 1 # +1 for spacing
+            except KeyError:
+                raise Exception(f"Character {char} not found in numerals, symbols, or icons dictionary")
+            except Exception as e:
+                raise e
+    grid = grid.T
     
     
 ## Border Draw Functions ##
@@ -143,7 +165,7 @@ def draw_2_x_1_horiz_grid(grid, border_value, y, x_split_idx=4):
     grid[x_split_idx, y:y+height] = border_value # Middle
     
 # Draws a border around a 16 (top segment) or a 17 (bottom segment),
-# split vertically into two sections at the specified row
+# row section, split vertically into two sections at the specified row
 def draw_1_x_2_vert_grid(grid, border_value, y, y_split_idx = 3):
     height = 16 if y == 0 else 17
     grid[:, y] = border_value # Top
@@ -204,14 +226,35 @@ def draw_app_border(app, *arguments):
     direct_draw_funcs[app].get('border')(*arguments)
             
 # Draw the IDs of apps currently assigned to the top and bottom of a panel
-def draw_ids(grid, top_left, bot_left, fill_value):
-    fill_grid_top = id_patterns[top_left]
-    fill_grid_bot = id_patterns[bot_left]
+def draw_ids(grid, top, bottom, fill_value, targs=None, bargs=None):
+    if isinstance(targs, list):
+        t_merged_dict = {k: v for d in targs if isinstance(d, dict) for k, v in d.items()}
+        id_override = t_merged_dict.get('id_key_override', None)
+        if id_override:
+            if t_merged_dict.get(id_override[0], False):
+                top = id_override[1]
+            else:
+                top = id_override[2]
+        b_merged_dict = {k: v for d in bargs if isinstance(d, dict) for k, v in d.items()}
+        id_override = b_merged_dict.get('id_key_override', None)
+        if id_override:
+            if b_merged_dict.get(id_override[0], False):
+                bottom = id_override[1]
+            else:
+                bottom = id_override[2]
+    fill_grid_top = id_patterns[top]
+    fill_grid_bot = id_patterns[bottom]
     grid[1:8, 1:16] = fill_grid_top * fill_value
     grid[1:8, 18:-1] = fill_grid_bot * fill_value
     
 # Draw the ID of the app currently assigned to the full panel
-def draw_id(grid, id, fill_value):
+def draw_id(grid, id, fill_value, args=None):
+    id_override = args.get('id_key_override', None)
+    if id_override:
+        if args.get(id_override[0], False):
+            id = id_override[1]
+        else:
+            id = id_override[2]
     fill_grid = id_patterns[id]
     grid[:,:] = fill_grid * fill_value
 
@@ -233,6 +276,8 @@ def init_device(location = "1-3.2"):
             if device.location and device.location.startswith(location):
                 s = serial.Serial(device.device, 115200)
                 return s
+        log.error('Error getting comm ports for LED panel USB devices')
+        sys.exit(1)
     except Exception as e:
         print(e)
 

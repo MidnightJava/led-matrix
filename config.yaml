@@ -1,58 +1,100 @@
-# Configure apps to be displayed on each quadrant. Optionally cycle though multiple apps
-# according to a configured time duration in seconds
-
 # Default duration value, overridden by per-app values if present
 duration: 10
+
+# Configure apps to be displayed on each quadrant. Optionally cycle though multiple apps
+# according to a configured time duration in seconds. App names must be unique within a quadrant.
 quadrants:
   top-left:
   - app:
+    name: time
+    # duration: 300
+    # Render on the entire panel. Make sure the lower quadrant has display: false
+    scope: panel
+    # args must be mappings, not lists
+    args:
+      fmt_24_hour: false
+      # Enter a timezone string from the IANA time zone database, e.g. "America/New_York" or "GMT"
+      # See https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#Time_zone_abbreviations
+      # If omitted or no value, your locale timezone will be used
+      timezone:
+  - app:
     name: cpu
-    duration: 300
+    # duration: 30
     animate: false
-  # Use this pattern for apps with args. Change only the args values
   - app:
     name: snap
-    duration: 5
-    # If true, scroll entire panel
+    # duration: 5
+    # If true, scroll the display
     animate: true
     scope: panel
-    # Snapshot args: file name, file path, panel
     args:
-      - zigzag.json
-      - snapshot_files/left
-      - left
+      file: zigzag.json
+      path: snapshot_files/left
+      panel: left
   top-right:
   - app:
+    name: weather
+    # duration: 300
+    scope: panel
+    args:
+      # Specify zip and country code or lat/lon, for weather lookup.
+      # Or set IP_LOCATE_API_KEY env var to lookup your location by IP
+      # Either way, you need to set OPENWEATHER_API_KEY for weather lookup (see .env-example  )
+      # See https://www.iban.com/country-codes for ISO 3166 country codes (use digraph)
+      # zip_info: ["your zip", "your country code"]
+      # lat_lon: [lat, lon]
+
+      # metric (Celsius), imperial (Farenheit), or standard (Kelvin). Default is metric
+      units: imperial
+      # If omitted, blank or false, show current weather
+      forecast: false
+      # Day offset (GMT time) for forecast (max 5, default 1)
+      forecast_day: 1
+      # Hour offset (GMT time) for forecast on selected day. One of 0, 3, 6, 9, 12, 15, 18, 21. default is 12
+      # If selected time is more than 5 * 24 hours from present time, the latest available forecast will be shown
+      forecast_hour: 12
+      # Override the key used to display the app ID. This means if forecast is true, use weather_forecast, otherwise use weather_current
+      id_key_override: [forecast, weather_forecast, weather_current]
+  - app:
     name: temp
-    duration: 300
+    # duration: 30
     animate: false
     scope: quadrant
   - app:
     name: snap
     animate: true
-    duration: 5
+    # duration: 5
     scope: panel
     args:
-      - every-third-row.json
-      - snapshot_files/right
-      - right
+      file: every-third-row.json
+      path: snapshot_files/right
+      panel: right
   bottom-right:
   - app:
-    name: fan
-    duration: 300
-    animate: false
-  # Keep thhe quadrant blank in this time slot. Used in conjunction with an app
-  # in the top quadrant that fills the entire panel, e.g. the snapshot (snap) app
+    name: noop1
+    # duration: 300
+    # Keep the quadrant blank in this time slot. Used in conjunction with an app
+    # in the top quadrant that fills the entire panel.
+    display: false
   - app:
-    name: none
-    duration: 5
-    animate: true
+    name: fan
+    # duration: 30
+    animate: false
+
+  - app:
+    name: noop2
+    display: false
+    # duration: 5
   bottom-left:
   - app:
+    name: noop1
+    # duration: 300
+    display: false
+  - app:
     name: mem-bat
-    duration: 300
+    # duration: 30
     animate: false
   - app:
-    name: none
-    duration: 5
-    animate: true
+    name: noop2
+    # duration: 5
+    display: false

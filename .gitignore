@@ -3,3 +3,6 @@ fwledmonitor.service
 matrix_patterns
 build
 dist
+.env
+weather.py
+__pycache__/

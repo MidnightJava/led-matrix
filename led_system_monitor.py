@@ -12,6 +12,23 @@ import logging
 
 log = logging.getLogger(__name__)
 
+LOG_LEVELS = {
+    "debug": logging.DEBUG,
+    "info": logging.INFO,
+    "warning": logging.WARNING,
+    "error": logging.ERROR,
+}
+
+log_level = LOG_LEVELS[os.environ.get("LOG_LEVEL", "warning").lower()]
+log.setLevel(log_level)
+
+def is_frozen():
+    """Return True if running from a PyInstaller bundle."""
+    return hasattr(sys, "_MEIPASS")
+
+from dotenv import load_dotenv
+# The pyinstaller-frozen code runs as a service, with the env var file specified in the service configfuration
+if not is_frozen(): load_dotenv()
 
 # Internal Dependencies
 from drawing import draw_outline_border, draw_ids, draw_id, draw_app, draw_app_border, DrawingThread
@@ -57,7 +74,7 @@ def get_config(config_file):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     config_file = os.path.join(current_dir, config_file)
     with open(config_file, 'r') as f:
-       return safe_load(f)
+        return safe_load(f)
 
 def discover_led_devices():
     locations = []
@@ -202,8 +219,8 @@ def app(args, base_apps, plugin_apps):
         draw_app(arg, grid, last_network_upload, foreground_value, bar_x_offset=1, y=idx)
         draw_app(arg, grid, last_network_download, foreground_value, bar_x_offset=5, y=idx)
         
-    def draw_snap(arg, grid, foreground_value, idx, file, snap_path, panel):
-        draw_app(arg, grid, foreground_value, file, snap_path, panel)
+    def draw_snap(arg, grid, foreground_value, idx, **kwargs):
+        draw_app(arg, grid, foreground_value, **kwargs)
         
     app_functions = {
         "cpu": draw_cpu,
@@ -278,7 +295,7 @@ def app(args, base_apps, plugin_apps):
     # Used to detect that the key listener was activated, for restoring anination mode after ID display
     global latch_key_combo
     latch_key_combo = False
-    def render_iteration():
+    def render_iteration(args):
         global latch_key_combo
         try:
             screen_brightness = get_monitor_brightness()
@@ -330,20 +347,22 @@ def app(args, base_apps, plugin_apps):
             if key_combo_active:
                 # Show app IDs for each quadrant or panel
                 draw_outline_border(grid, background_value)
-                #If app takes up entire panel, we draw the ID border differently
+                #If app takes up entire panel, we draw the ID differently
                 if left_args[0].get("scope", None) == "panel":
-                    draw_id(grid, left_args[0]['name'], foreground_value)
+                    draw_id(grid, left_args[0]['name'], foreground_value, args=left_args[0].get('args', None))
                 else:
-                    draw_ids(grid, left_args[0]['name'], left_args[1]['name'], foreground_value)
+                    draw_ids(grid, left_args[0]['name'], left_args[1]['name'], foreground_value,
+                        targs=left_args[0].get('args', None), bargs=left_args[1].get('args', None))
                 left_drawing_queue.put((grid, False))
                 
                 if len(drawing_queues) > 1:  # Right panel exists
                     grid = np.zeros((9,34), dtype = int)
                     draw_outline_border(grid, background_value)
                     if right_args[0].get("scope", None) == "panel":
-                        draw_id(grid, right_args[0]['name'], foreground_value)
+                        draw_id(grid, right_args[0]['name'], foreground_value, args=right_args[0].get('args', None))
                     else:
-                        draw_ids(grid, right_args[0]['name'], right_args[1]['name'], foreground_value)
+                        draw_ids(grid, right_args[0]['name'], right_args[1]['name'], foreground_value,
+                            targs=right_args[0].get('args', None), bargs=right_args[0].get('args', None))
                     right_drawing_queue.put((grid, False))
                 time.sleep(0.1)
                 latch_key_combo = True
@@ -359,7 +378,7 @@ def app(args, base_apps, plugin_apps):
                     _args = right_args
                 for j, arg in enumerate(_args):
                     arg_name = arg['name']
-                    if arg_name == "none": continue
+                    if arg.get("display", True) == False: continue
                     if j == 0:
                         idx = 0
                         loc = 'top'
@@ -369,12 +388,16 @@ def app(args, base_apps, plugin_apps):
                     try:
                         func = app_functions[arg_name]
                         func_args = [arg_name, grid, foreground_value, idx]
+                        kwargs = {}
                         if 'args' in arg:
-                            func_args.extend(arg.get("args", None))
-                        func(*func_args)
+                            #Args must be hashable, to support function caching, so convert any list values in dicts to tuples
+                            kwargs = {k: tuple(v) if isinstance(v, list) else v for k, v in arg['args'].items()}
+                        func(*func_args, **kwargs)
                         animate = arg.get("animate", False)
                     except KeyError:
-                        log.error(f"Unrecognized display option {arg_name} for {loc} {panel}")
+                        log.error(f"Unrecognized app {arg_name} for {loc} {panel}")
+                    except Exception as e:
+                        log.error(f"Error {e} with app {arg_name} for {loc} {panel}")
                     # Single border draw for mem and bat together
                     if arg_name == 'mem-bat': arg_name = 'mem'
                     draw_app_border(arg_name, grid, background_value, idx)
@@ -406,14 +429,14 @@ def app(args, base_apps, plugin_apps):
         try:
             with Listener(on_press=on_press, on_release=on_release):
                 while True:
-                    render_iteration()
+                    render_iteration(args)
         except Exception as e:
             log.error(f"Warning: pynput listener could not be started ({e}). Falling back to evdev-only mode.")
             while True:
-                render_iteration()
+                render_iteration(args)
     else:
         while True:
-            render_iteration()
+            render_iteration(args)
 
     log.info("Exiting")
 
@@ -444,7 +467,7 @@ def main(args):
                             formatter_class=ArgumentDefaultsHelpFormatter)
     mode_group = parser.add_argument_group()
     mode_group.add_argument("--help", "-h", action="help",
-                         help="Show this help message and exit")
+        help="Show this help message and exit")
     
     mode_group.add_argument("-config-file", "-cf", type=str, default="config.yaml", help="File that specifies which apps to run in each panel quadrant")
     mode_group.add_argument("--no-key-listener", "-nkl", action="store_true", help="Do not listen for key presses")
