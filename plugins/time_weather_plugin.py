@@ -10,6 +10,9 @@ from threading import Timer
 from patterns import icons, letters_5_x_6
 import logging
 
+OPENWEATHER_HOST = 'https://api.openweathermap.org'
+IPIFY_HOST = 'https://api.ipify.org'
+
 log = logging.getLogger(__name__)
 LOG_LEVELS = {
     "debug": logging.DEBUG,
@@ -28,7 +31,7 @@ log.setLevel(log_level)
 # Cache results so we avoid exceeding the API rate limit
 def get_location_by_zip(zip_info, weather_api_key):
     zip_code, country = zip_info
-    result = requests.get(f"http://api.openweathermap.org/geo/1.0/zip?zip={zip_code},{country}&appid={weather_api_key}").json()
+    result = requests.get(f"{OPENWEATHER_HOST}/geo/1.0/zip?zip={zip_code},{country}&appid={weather_api_key}").json()
     lat = result['lat']
     lon = result['lon']
     loc = lat, lon
@@ -39,7 +42,10 @@ def get_location_by_ip(ip_api_key, ip):
     client = IPLocateClient(api_key=ip_api_key)
     result = client.lookup(ip)
     loc = result.latitude, result.longitude
-    log.debug(f"Location: {loc}")
+    try:
+        log.debug(f"Getting weather for {result.city}, {result.subdivision}, {result.country_code}, geo coordinates: {loc}")
+    except:
+        pass
     return loc
 
 ####  Monitor functions ####
@@ -67,9 +73,9 @@ class WeatherMonitor:
     @cache
     # Cache results so we avoid exceeding the API rate limit
     def get(fs_dict):
-        ip = requests.get('https://api.ipify.org').text
+        ip = requests.get(IPIFY_HOST).text
         ip_api_key = os.environ.get("IP_LOCATE_API_KEY", None)
-        weather_api_key = os.environ.get("OPENWEATHER_API_KEY")
+        weather_api_key = os.environ.get("OPENWEATHER_API_KEY", None)
 
         # https://ipapi.co/ip/ is a simpler location API (no api key needed for free version),
         # but it applies rate limits arbitrarily and is not be reliable for production use.
@@ -83,10 +89,10 @@ class WeatherMonitor:
         mist_like = ['Mist', 'Fog', 'Dust', 'Haze', 'Smoke', 'Squall', 'Ash', 'Sand', 'Tornado']
 
         try:
-            if zip_info:
-                loc = get_location_by_zip(zip_info, weather_api_key)
-            elif lat_lon:
+            if lat_lon:
                 loc = lat_lon
+            elif zip_info:
+                loc = get_location_by_zip(zip_info, weather_api_key)
             elif ip_api_key:
                 loc = get_location_by_ip(ip_api_key, ip)
             else:
@@ -95,7 +101,7 @@ class WeatherMonitor:
             temp_symbol = 'degC'if units == 'metric' else 'degF' if units == 'imperial' else 'degK'
 
             if forecast:
-                forecast = requests.get(f"http://api.openweathermap.org/data/2.5/forecast?lat={loc[0]}&lon={loc[1]}&appid={weather_api_key}&units={units}").json()
+                forecast = requests.get(f"{OPENWEATHER_HOST}/data/2.5/forecast?lat={loc[0]}&lon={loc[1]}&appid={weather_api_key}&units={units}").json()
                 fc = forecast['list'][0]
                 temp = fc['main']['temp']
                 cond = fc['weather'][0]['main']
@@ -116,7 +122,7 @@ class WeatherMonitor:
                 log.debug(f"Forecast weather: {fc['dt_txt']} {temp } {temp_symbol}, {cond}")
                 return _forecast
             else:
-                current = requests.get(f"http://api.openweathermap.org/data/2.5/weather?lat={loc[0]}&lon={loc[1]}&appid={weather_api_key}&units={units}").json()
+                current = requests.get(f"{OPENWEATHER_HOST}/data/2.5/weather?lat={loc[0]}&lon={loc[1]}&appid={weather_api_key}&units={units}").json()
 
                 _current = [current['main']['temp'], temp_symbol, current['weather'][0]['main']]
                 if _current[2] in mist_like: _current[2] = 'mist-like'
@@ -139,11 +145,11 @@ draw_app = getattr(drawing, 'draw_app')
 def draw_weather(arg, grid, foreground_value, idx, **kwargs):
     # Make kwargs hashable for caching
     fs_dict = frozenset(kwargs.items())
-    current_weather = weather_monitor.get(fs_dict)
-    if current_weather and current_weather[0] and current_weather[1]:
-        temp_val = current_weather[0]
+    weather = weather_monitor.get(fs_dict)
+    if weather and weather[0] and weather[1]:
+        temp_val = weather[0]
         temp = str(round(temp_val))
-        weather_values = list(temp) + [current_weather[1]] + [current_weather[2].lower()]
+        weather_values = list(temp) + [weather[1]] + [weather[2].lower()]
         draw_app(arg, grid, weather_values, foreground_value, idx)
     else:
         draw_app(arg, grid, ["?", "?"], foreground_value, idx)
