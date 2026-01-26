@@ -37,7 +37,7 @@ def get_location_by_zip(zip_info, weather_api_key):
     loc = lat, lon
     return loc
 
-
+@cache
 def get_location_by_ip(ip_api_key, ip):
     client = IPLocateClient(api_key=ip_api_key)
     result = client.lookup(ip)
