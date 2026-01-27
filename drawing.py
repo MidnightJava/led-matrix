@@ -102,7 +102,7 @@ def draw_snapshot(grid, fill_value, **kwargs):
     #     if isinstance(arg, dict):
     #         args_dict.update(arg)
     path = kwargs.get('path', None)
-    panel = kwargs.get('panel;, None')
+    panel = kwargs.get('panel', None)
     file = kwargs.get('file', None)
     current_dir = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(current_dir, path)
@@ -338,3 +338,4 @@ if not re.search(r"--disable-plugins|-dp", str(sys.argv)):
                 id_patterns[k] = v
             
 ################################################################
+
