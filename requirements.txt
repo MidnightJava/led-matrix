@@ -1,10 +1,10 @@
-pyserial
-numpy
-psutil
-evdev
-pynput
-pyyaml
+pyserial >= 3.5
+numpy >= 2.4.1
+psutil >= 7.2.1
+evdev >= 1.9.2
+pynput >= 1.8.1
+pyyaml >= 6.0.3
 pyinstaller
 requests >= 2.32.5
 python-iplocate >= 1.0.0
-dotenv >= 1.0.0
+python-dotenv >= 1.2.1
