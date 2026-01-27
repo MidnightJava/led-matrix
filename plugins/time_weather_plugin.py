@@ -29,6 +29,7 @@ log.setLevel(log_level)
 
 @cache
 # Cache results so we avoid exceeding the API rate limit
+# No need to invalidate cache since location per given zip is fixed
 def get_location_by_zip(zip_info, weather_api_key):
     zip_code, country = zip_info
     result = requests.get(f"{OPENWEATHER_HOST}/geo/1.0/zip?zip={zip_code},{country}&appid={weather_api_key}").json()
@@ -38,6 +39,8 @@ def get_location_by_zip(zip_info, weather_api_key):
     return loc
 
 @cache
+# Cache results so we avoid exceeding the API rate limit
+# No need to invalidate cache since location per given IP address is generally fixed
 def get_location_by_ip(ip_api_key, ip):
     client = IPLocateClient(api_key=ip_api_key)
     result = client.lookup(ip)
@@ -173,7 +176,8 @@ def repeat_function(interval, func, *args, **kwargs):
     Timer(interval, wrapper).start()
 
 
-# Get fresh weather data every 30 secs
+# Get fresh weather data every 30 secs. Two calls per minute will be well within the openweather API
+# free tierlimit of 60 calls/minute and 1,000,000 calls/month
 repeat_function(30, weather_monitor.get.cache_clear)
 
 draw_chars = getattr(drawing, 'draw_chars')

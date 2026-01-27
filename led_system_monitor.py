@@ -69,10 +69,16 @@ def find_keyboard_device():
         log.warning(f"Warning: Could not auto-detect keyboard device: {e}")
     return None
 
-def get_config(config_file):
-    config_file = os.environ.get("CONFIG_FILE", None) or config_file
+def get_config():
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    config_file = os.path.join(current_dir, config_file)
+    config_file_name = 'config-local.yaml'
+    config_file = os.path.join(current_dir, config_file_name)
+    if os.path.exists(config_file):
+        log.debug(f"using local config file {config_file}")
+    else:
+        config_file_name = 'config.yaml'
+        config_file = os.path.join(current_dir, config_file_name)
+        log.debug(f"Using default config file {config_file}")
     with open(config_file, 'r') as f:
         return safe_load(f)
 
@@ -134,7 +140,7 @@ def app(args, base_apps, plugin_apps):
     ################################################################################
     ### Parse config file to enable control of apps by quadrant and by time slice ##
     ################################################################################
-    config = get_config(args.config_file)
+    config = get_config()
     duration = config['duration'] #Default config to be applied if not set in an app
     quads = config['quadrants']
     top_left,  bottom_left, top_right, bottom_right, = \
@@ -469,14 +475,12 @@ def main(args):
     mode_group.add_argument("--help", "-h", action="help",
         help="Show this help message and exit")
     
-    mode_group.add_argument("-config-file", "-cf", type=str, default="config.yaml", help="File that specifies which apps to run in each panel quadrant")
     mode_group.add_argument("--no-key-listener", "-nkl", action="store_true", help="Do not listen for key presses")
     mode_group.add_argument("--disable-plugins", "-dp", action="store_true", help="Do not load any plugin code")
     mode_group.add_argument("--list-apps", "-la", action="store_true", help="List the installed apps, and exit")
     
     args = parser.parse_args()
     if args.no_key_listener: print("Key listener disabled")
-    log.info(f"Using config file {args.config_file}")
     app(args, base_apps, plugin_apps)
 
 if __name__ == "__main__":
@@ -491,6 +495,6 @@ if __name__ == "__main__":
     logging.basicConfig(
         level=level,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-)
+    )
     main(sys.argv)
 
