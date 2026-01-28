@@ -29,7 +29,7 @@ quadrants:
     scope: panel
     args:
       file: zigzag.json
-      path: snapshot_files/left
+      path: snapshot_files
       panel: left
   top-right:
   - app:
@@ -67,7 +67,7 @@ quadrants:
     scope: panel
     args:
       file: every-third-row.json
-      path: snapshot_files/right
+      path: snapshot_files
       panel: right
   bottom-right:
   - app:
