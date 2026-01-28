@@ -26,9 +26,10 @@ def is_frozen():
     """Return True if running from a PyInstaller bundle."""
     return hasattr(sys, "_MEIPASS")
 
-from dotenv import load_dotenv
 # The pyinstaller-frozen code runs as a service, with the env var file specified in the service configfuration
-if not is_frozen(): load_dotenv()
+if not is_frozen():
+    from dotenv import load_dotenv
+    load_dotenv()
 
 # Internal Dependencies
 from drawing import draw_outline_border, draw_ids, draw_id, draw_app, draw_app_border, DrawingThread
