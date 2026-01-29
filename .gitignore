@@ -4,5 +4,5 @@ matrix_patterns
 build
 dist
 .env
-weather.py
+config-local.yaml
 __pycache__/
