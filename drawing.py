@@ -97,10 +97,6 @@ def draw_bar(grid, bar_ratio, bar_value, bar_x_offset = 1, y=0):
 warned = set()
 def draw_snapshot(grid, fill_value, **kwargs):
     global warned
-    # args_dict = {}
-    # for arg in args:
-    #     if isinstance(arg, dict):
-    #         args_dict.update(arg)
     path = kwargs.get('path', None)
     panel = kwargs.get('panel', None)
     file = kwargs.get('file', None)
