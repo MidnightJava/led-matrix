@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('plugins', 'plugins'), ('snapshot_files', 'snapshot_files'), ('config.yaml', '.')],
+    datas=[('plugins', 'plugins'), ('snapshot_files', 'snapshot_files'), ('config.yaml', '.'), ('config-local.yaml', '.')],
     hiddenimports=['yaml', 'pynput', 'requests', 'zoneinfo', 'iplocate', 'dotenv'],
     hookspath=[],
     hooksconfig={},

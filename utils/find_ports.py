@@ -1,4 +1,4 @@
-import serial
+# External Dependencies
 from serial.tools import list_ports
 
 def init_device(location = "1-4.2"):

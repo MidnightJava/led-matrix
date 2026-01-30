@@ -1,7 +1,13 @@
+# Built In Dependencies
 from statistics import mean
+
+# Internal dependencies
+from led_mon.patterns import letters_small
+from led_mon import drawing
+
+# External dependenciees
 import psutil
 import numpy as np
-from patterns import letters_small
 
 # Reference for fractional measure of sensor temps (in degrees Celcius)
 TEMP_REF = 120
@@ -38,7 +44,6 @@ fan_speed_monitor = FanSpeedMonitor()
 
 #### Implement high-level drawing functions to be called by app functions below ####
 
-import drawing
 draw_app = getattr(drawing, 'draw_app')
 
 def draw_temps(arg, grid, foreground_value, idx):

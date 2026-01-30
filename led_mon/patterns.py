@@ -1,8 +1,5 @@
+# External Dependencies
 import numpy as np
-import re
-import os
-import sys
-import importlib
 
 lightning_bolt_bot = np.array([
     [0, 0, 0, 0, 0, 0, 0],  # 0

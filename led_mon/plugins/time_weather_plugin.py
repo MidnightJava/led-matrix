@@ -1,14 +1,20 @@
+# Built In Dependencies
 from statistics import mean
 import requests
 import os
 from zoneinfo import ZoneInfo
 from datetime import datetime, timedelta
-from iplocate import IPLocateClient
-import numpy as np
 from functools import cache
 from threading import Timer
-from patterns import icons, letters_5_x_6
 import logging
+
+# Internal dependencies
+from led_mon.patterns import icons, letters_5_x_6
+from led_mon import drawing
+
+# External dependencies
+from iplocate import IPLocateClient
+import numpy as np
 
 OPENWEATHER_HOST = 'https://api.openweathermap.org'
 IPIFY_HOST = 'https://api.ipify.org'
@@ -141,7 +147,6 @@ weather_monitor = WeatherMonitor()
 
 #### Implement high-level drawing functions to be called by app functions below ####
 
-import drawing
 draw_app = getattr(drawing, 'draw_app')
 
         
