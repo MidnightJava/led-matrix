@@ -29,10 +29,14 @@ The `build_and_install.sh` script will automatically detect your Linux distribut
 * Display system performance characteristics in real-time
   * CPU utilization
   * Battery charge level and plug status + memory utilization
-  * Disk Input/Output ratesStep by Step 
+  * Disk Input/Output rates 
   * Network Upload/Download rates
   * Temperature sensor readings
   * Fan speeds
+* Other apps
+  * Current weather or weather forecast
+  * Time
+  * Display patterns saved in snapshot json files
 * Display any system monitoring app on any quadrant
   * Top or bottom of left or right panel
   * Assign multiple apps to any quadrant and cycle throiugh them at specified time intervals
@@ -43,14 +47,14 @@ The `build_and_install.sh` script will automatically detect your Linux distribut
 * Plugin framework supports simplified development of addiitonal LED Panel applications
 * Automatic detection of left and right LED panels
 * Automatic detection of keyboard device (for keyboard shortcut use)
-## Capabilities added to the original implementation
- * Temp sensor and fan speed apps
- * Metrics apps configurable to any matrix quadrant, with optional time multiplexing
- * Configuration of apps via yaml config file
- * LED panel animation
- * Plugin capability
- * Automatic device and keyboard detection
- * Snapshot app
+* Snapshot app
+* Plugin capability
+* Automatic device and keyboard detection
+
+## Import note about Python environments
+[Pep 668](https://peps.python.org/pep-0668/) provides a mechanism for a Python installation to communicate to tools such as Pip that the installation is externally managed. For Python installations that implement this notification, an attempt to install a package in the global context will be denied, with a message that the installation is externally managed. There are ways to override the PEP 668 constraint (such as using pipx or the --break-system-packages flag). The standard solution, however, is to use a Python Virtual Environment. See installation notes below for more information.
+
+The build and installation instructions and scripts for this project assume that every Python installation action is done in a virtual environment. If you want to perform a global installation, it's up to you to make whatever changes are needed to make that work. Also, please note that a misconfigured virtual environment will result in either build-time or run-time failures. Generally, you should 1) Install package dependencies for the selected virtual environment tool 2) Install the tool 3) Configure the tool per instructions provided by the tool provider 3) Create a virtual environment and activate it 4) Ensure that the virtual environment is currently activated in any shell from which you perform a Python installation, whether launching python directly or invoking a build or installation script. The error message `python: command not found` is a likely indicator of a missing or misconfigured virtual environment.
 
 ## Manual Installation (run the app from the command line in the foreground)
 
@@ -217,7 +221,7 @@ While running as root will bypass permission issues, this is not recommended for
 sudo python3 led_system_monitor.py
 ```
 
-### Keyboard Input Access (Optional)
+## Keyboard Input Access (Optional)
 
 For the Alt+I keyboard shortcut feature to work, the application needs read access to keyboard input devices:
 
@@ -233,11 +237,14 @@ groups $USER
 
 **Security Note:** Adding your user to the `input` group allows any program running as your user to potentially capture keystrokes. Consider the security implications before doing this, or do not add your user to the group, and use `--no-key-listener` to disable this feature.
 
-### Modifying the Apps Configuration
-* Edit config.yaml. See example settings and comments for help.
-* When running as a service, the config file will be at /opt/led_mon/_internal/config.yaml (unless overriden by --config-file arg)
+## Modifying the Apps Configuration
+* Look at the file `config.yaml` to see the default configuration, along with comments explaining the format and meaning of config setting.
+* Make a copy of `config.yaml`, named `config-local.yaml`, in the project main directory, if you want to customize your configuration. This file is git-ignored, so it will not be shared or overwritten.
+* If `config-local.yaml` is present, it will be thhe active config and `config.yaml` will be ignored.
+* When running as a service, both config files will be copied to `/opt/led_mon/_internal/`. Files in this directory will be completely overwritten for every installation, so you should maintain your local configuration in the project repo, not the application installation directory.
+* The `config.yaml` file may be updated when you run `git pull` in the repo. Check Pull Request comments for an explanation of what changed. Every effort will be made to avoid breaking changes, but they cannot be ruled out at this stage of dvelopment. When new widgets are added to the app, you'll need to manually copy the new widget config settings into your local config file if you have one.
 
-### Verifying Device Access
+## Verifying Device Access
 
 To check if your LED Matrix devices are properly accessible:
 
@@ -249,24 +256,15 @@ ls -la /dev/ttyACM*
 python3 -c "from serial.tools import list_ports; [print(f'{p.device}: {p.description}') for p in list_ports.comports() if 'LED Matrix' in str(p)]"
 ```
 
-### Linux Service Dependencies
-
-If you want to run the code as a Linux service, you need to install the python dependencies as the root user:
-```bash
-cd led-matrix
-sudo pip install -r requirements.txt
-```
-## Run
+## Run from the command line
 ```
 cd led-matrix
-python led-sysyem-monitor.py [--help] [--top-left {cpu,net,disk,mem-bat,none,temp,fan}]
-                             [--config file <path/to/config/file> (default ./config.yaml]
-                             [--list-apps]
+python led-sysyem-monitor.py [--help] [--no-key-listener] [--disable-plugins] [--list-apps]
 python led-sysyem-monitor.py --help #For more verbose help info
 ```
 ## Run as a Linux service
+ENter the top-level project directory, and ensure that a virtual environment is configured and activated.
 ```
-cd led-matrix
 ./build_and_install.sh
 sudo systemctl start|stop|restart|status fwledmonitor
 ```
