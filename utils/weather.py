@@ -1,8 +1,11 @@
-import os, sys
+# Built In Dependencies
+import os
 import requests
 from zoneinfo import ZoneInfo
-from iplocate import IPLocateClient
 from datetime import datetime, timedelta
+
+# External Dependencies
+from iplocate import IPLocateClient
 
 OPENWEATHER_HOST = 'https://api.openweathermap.org'
 IPIFY_HOST = 'https://api.ipify.org'

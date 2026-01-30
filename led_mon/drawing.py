@@ -10,8 +10,8 @@ import json
 import logging
 
 # Internal Dependencies
-from commands import Commands, send_command, do_animate
-from patterns import lightning_bolt_bot, lightning_bolt_top, lookup_table, id_patterns, symbols, numerals, icons
+from led_mon.commands import Commands, send_command, do_animate
+from led_mon.patterns import lightning_bolt_bot, lightning_bolt_top, lookup_table, id_patterns, symbols, numerals, icons
 
 # External Dependencies
 import numpy as np
@@ -329,7 +329,7 @@ if not re.search(r"--disable-plugins|-dp", str(sys.argv)):
             for k,v in module.direct_draw_funcs.items():
                 direct_draw_funcs[k] = v
                 
-            from drawing import id_patterns
+            from led_mon.drawing import id_patterns
             for k,v in module.id_patterns.items():
                 id_patterns[k] = v
             

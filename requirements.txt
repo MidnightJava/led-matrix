@@ -1,5 +1,5 @@
 pyserial >= 3.5
-numpy >= 2.4.1
+numpy >= 2.3.0
 psutil >= 7.2.1
 evdev >= 1.9.2
 pynput >= 1.8.1

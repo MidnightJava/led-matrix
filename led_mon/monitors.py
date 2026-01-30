@@ -1,8 +1,9 @@
 # Built In Dependencies
 import time
-import psutil
 import os
-from statistics import mean
+
+# External Dependencies
+import psutil
 
 # Reference for fractional measure of sensor temps (in degrees Celcius)
 TEMP_REF = 120

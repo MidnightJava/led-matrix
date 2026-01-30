@@ -1,26 +1,22 @@
-from led_system_monitor import main
+# Built In Dependencies
 import os
-import logging
-import re
 import sys
-import importlib
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+import logging
 
-level = logging.WARNING
-if os.getenv("LOG_LEVEL", "").lower() == "debug":
-    level = logging.DEBUG
-elif os.getenv("LOG_LEVEL", "").lower() == "error":
-    level = logging.ERROR
-elif os.getenv("LOG_LEVEL", "").lower() == "info":
-    level = logging.INFO
-
-logging.basicConfig(
-    level=level,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-)
-
-log = logging.getLogger(__name__)
+# Internal Dependencies
+from led_mon.led_system_monitor import main
 
 if __name__ == "__main__":
-    log.debug("Calling main")
+    level = logging.WARNING
+    if os.getenv("LOG_LEVEL", "").lower() == "debug":
+        level = logging.DEBUG
+    elif os.getenv("LOG_LEVEL", "").lower() == "error":
+        level = logging.ERROR
+    elif os.getenv("LOG_LEVEL", "").lower() == "info":
+        level = logging.INFO
+
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
     main(sys.argv)

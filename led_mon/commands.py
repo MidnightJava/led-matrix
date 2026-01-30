@@ -1,5 +1,3 @@
-from enum import Enum
-
 # https://github.com/FrameworkComputer/inputmodule-rs/blob/main/commands.md
 
 # Display is 9x34 wide x tall

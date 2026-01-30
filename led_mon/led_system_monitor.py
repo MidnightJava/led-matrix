@@ -10,6 +10,25 @@ import os
 from collections import defaultdict
 import logging
 
+# Internal Dependencies
+from led_mon.drawing import draw_outline_border, draw_ids, draw_id, draw_app, draw_app_border, DrawingThread
+from led_mon.monitors import CPUMonitor, MemoryMonitor, BatteryMonitor, DiskMonitor, NetworkMonitor, get_monitor_brightness
+
+# External Dependencies
+import numpy as np
+import evdev
+from yaml import safe_load
+
+# Optional cross-platform keyboard input; on some Linux Wayland setups this may be unavailable
+try:
+    from pynput.keyboard import Key, Listener
+    PYNPUT_AVAILABLE = True
+except Exception:
+    Key = None
+    Listener = None
+    PYNPUT_AVAILABLE = False
+from serial.tools import list_ports
+
 log = logging.getLogger(__name__)
 
 LOG_LEVELS = {
@@ -30,24 +49,6 @@ def is_frozen():
 if not is_frozen():
     from dotenv import load_dotenv
     load_dotenv()
-
-# Internal Dependencies
-from drawing import draw_outline_border, draw_ids, draw_id, draw_app, draw_app_border, DrawingThread
-from monitors import CPUMonitor, MemoryMonitor, BatteryMonitor, DiskMonitor, NetworkMonitor, get_monitor_brightness
-
-# External Dependencies
-import numpy as np
-import evdev
-from yaml import safe_load
-# Optional cross-platform keyboard input; on some Linux Wayland setups this may be unavailable
-try:
-    from pynput.keyboard import Key, Listener
-    PYNPUT_AVAILABLE = True
-except Exception:
-    Key = None
-    Listener = None
-    PYNPUT_AVAILABLE = False
-from serial.tools import list_ports
 
 KEY_I = ('KEY_I', 23)
 MODIFIER_KEYS = [('KEY_RIGHTALT', 100), ('KEY_LEFTALT', 56)]
