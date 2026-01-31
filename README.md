@@ -259,8 +259,8 @@ python3 -c "from serial.tools import list_ports; [print(f'{p.device}: {p.descrip
 ## Run from the command line
 ```
 cd led-matrix
-python led-sysyem-monitor.py [--help] [--no-key-listener] [--disable-plugins] [--list-apps]
-python led-sysyem-monitor.py --help #For more verbose help info
+python -m led_mon.led_system_monitor [--help] [--no-key-listener] [--disable-plugins] [--list-apps]
+python -m led_mon.led_system_monitor --help #For more verbose help info
 ```
 ## Run as a Linux service
 ENter the top-level project directory, and ensure that a virtual environment is configured and activated.
