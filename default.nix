@@ -23,28 +23,34 @@ python3.pkgs.buildPythonApplication rec {
     psutil
     evdev
     pynput
-    pyyaml  # NEW: Required for YAML config parsing
+    pyyaml  # Required for YAML config parsing
+    python-dotenv  # Required for environment variable loading
+    requests  # Required for time_weather_plugin
+    # Note: iplocate is not available in nixpkgs - time_weather_plugin will need to handle this gracefully
   ];
 
   installPhase = ''
     mkdir -p $out/bin
-    mkdir -p $out/lib/python${python3.pythonVersion}/site-packages/led_matrix_monitoring
+    mkdir -p $out/lib/python${python3.pythonVersion}/site-packages
     mkdir -p $out/share/led-matrix
     
-    # Copy Python files
-    cp *.py $out/lib/python${python3.pythonVersion}/site-packages/led_matrix_monitoring/
+    # Copy the entire led_mon module
+    cp -r led_mon $out/lib/python${python3.pythonVersion}/site-packages/
     
-    # Copy data directories to share
-    cp -r plugins $out/share/led-matrix/
-    cp -r snapshot_files $out/share/led-matrix/
+    # Exclude time_weather_plugin due to unavailable iplocate dependency in nixpkgs
+    rm -f $out/lib/python${python3.pythonVersion}/site-packages/led_mon/plugins/time_weather_plugin.py
     
-    # Copy example config
-    cp config.yaml $out/share/led-matrix/config.example.yaml
+    # Copy main.py to the package root
+    cp main.py $out/lib/python${python3.pythonVersion}/site-packages/
     
-    # Create wrapper script with proper Python environment and config support
-    makeWrapper ${python3.withPackages (ps: with ps; [ pyserial numpy psutil evdev pynput pyyaml ])}/bin/python $out/bin/led-matrix-monitor \
-      --add-flags "$out/lib/python${python3.pythonVersion}/site-packages/led_matrix_monitoring/main.py" \
-      --prefix PYTHONPATH : "$out/lib/python${python3.pythonVersion}/site-packages/led_matrix_monitoring"
+    # Copy example config and .env to share for reference
+    cp led_mon/config.yaml $out/share/led-matrix/config.example.yaml
+    cp led_mon/.env-example $out/share/led-matrix/.env-example
+    
+    # Create wrapper script with proper Python environment
+    makeWrapper ${python3.withPackages (ps: with ps; [ pyserial numpy psutil evdev pynput pyyaml python-dotenv requests ])}/bin/python $out/bin/led-matrix-monitor \
+      --add-flags "$out/lib/python${python3.pythonVersion}/site-packages/main.py" \
+      --prefix PYTHONPATH : "$out/lib/python${python3.pythonVersion}/site-packages"
   '';
 
   # Skip tests for now since there aren't any
