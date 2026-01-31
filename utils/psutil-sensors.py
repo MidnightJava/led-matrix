@@ -1,5 +1,8 @@
-import psutil
+# Built in Dependencies
 from statistics import mean
+
+# External Dependencies
+import psutil
 
 print("Temperature sensors")
 temps = psutil.sensors_temperatures()

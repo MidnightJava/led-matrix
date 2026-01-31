@@ -31,29 +31,27 @@ python3.pkgs.buildPythonApplication rec {
 
   installPhase = ''
     mkdir -p $out/bin
-    mkdir -p $out/lib/python${python3.pythonVersion}/site-packages/led_matrix_monitoring
+    mkdir -p $out/lib/python${python3.pythonVersion}/site-packages
     mkdir -p $out/share/led-matrix
     
-    # Copy Python files
-    cp *.py $out/lib/python${python3.pythonVersion}/site-packages/led_matrix_monitoring/
+    # Copy the entire led_mon module
+    cp -r led_mon $out/lib/python${python3.pythonVersion}/site-packages/
     
-    # Copy data directories to the SAME location as Python files
-    # The code expects plugins, snapshot_files, and config.yaml in the same directory as the .py files
-    # Exclude time_weather_plugin due to unavailable iplocate dependency in nixpkgs (need to add a way to build the dep from source?)
-    mkdir -p $out/lib/python${python3.pythonVersion}/site-packages/led_matrix_monitoring/plugins
-    cp plugins/__init__.py $out/lib/python${python3.pythonVersion}/site-packages/led_matrix_monitoring/plugins/
-    cp plugins/temp_fan_plugin.py $out/lib/python${python3.pythonVersion}/site-packages/led_matrix_monitoring/plugins/
-    # Skip time_weather_plugin.py - requires iplocate which is not available in nixpkgs
-    cp -r snapshot_files $out/lib/python${python3.pythonVersion}/site-packages/led_matrix_monitoring/
-    cp config.yaml $out/lib/python${python3.pythonVersion}/site-packages/led_matrix_monitoring/
+    # Note: time_weather_plugin is included - iplocate import is lazy-loaded inside a function,
+    # so the plugin will work for zip/lat-lon lookups even without iplocate package.
+    # IP-based location lookup will fail gracefully if iplocate is not available.
     
-    # Also copy example config to share for reference
-    cp config.yaml $out/share/led-matrix/config.example.yaml
+    # Copy main.py to the package root
+    cp main.py $out/lib/python${python3.pythonVersion}/site-packages/
     
-    # Create wrapper script with proper Python environment and config support
+    # Copy example config and .env to share for reference
+    cp led_mon/config.yaml $out/share/led-matrix/config.example.yaml
+    cp led_mon/.env-example $out/share/led-matrix/.env-example
+    
+    # Create wrapper script with proper Python environment
     makeWrapper ${python3.withPackages (ps: with ps; [ pyserial numpy psutil evdev pynput pyyaml python-dotenv requests ])}/bin/python $out/bin/led-matrix-monitor \
-      --add-flags "$out/lib/python${python3.pythonVersion}/site-packages/led_matrix_monitoring/main.py" \
-      --prefix PYTHONPATH : "$out/lib/python${python3.pythonVersion}/site-packages/led_matrix_monitoring"
+      --add-flags "$out/lib/python${python3.pythonVersion}/site-packages/main.py" \
+      --prefix PYTHONPATH : "$out/lib/python${python3.pythonVersion}/site-packages"
   '';
 
   # Skip tests for now since there aren't any
