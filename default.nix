@@ -37,8 +37,9 @@ python3.pkgs.buildPythonApplication rec {
     # Copy the entire led_mon module
     cp -r led_mon $out/lib/python${python3.pythonVersion}/site-packages/
     
-    # Exclude time_weather_plugin due to unavailable iplocate dependency in nixpkgs
-    rm -f $out/lib/python${python3.pythonVersion}/site-packages/led_mon/plugins/time_weather_plugin.py
+    # Note: time_weather_plugin is included - iplocate import is lazy-loaded inside a function,
+    # so the plugin will work for zip/lat-lon lookups even without iplocate package.
+    # IP-based location lookup will fail gracefully if iplocate is not available.
     
     # Copy main.py to the package root
     cp main.py $out/lib/python${python3.pythonVersion}/site-packages/

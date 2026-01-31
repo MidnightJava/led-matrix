@@ -43,9 +43,9 @@
         let
           cfg = config.services.led-matrix-monitoring;
           led-matrix-monitoring = pkgs.callPackage ./default.nix {};
-          
+
           yamlFormat = pkgs.formats.yaml {};
-          
+
           # Helper to convert old-style config to YAML
           legacyToYaml = {
             duration = 10;
@@ -76,9 +76,9 @@
               }];
             };
           };
-          
+
           # Determine which config to use
-          configFile = 
+          configFile =
             if cfg.configFile != null then cfg.configFile
             else if cfg.config != null then yamlFormat.generate "led-matrix-config.yaml" cfg.config
             else if cfg.topLeft != null then yamlFormat.generate "led-matrix-config.yaml" legacyToYaml
@@ -93,7 +93,7 @@
               description = ''
                 Configuration for LED Matrix monitoring as a Nix attrset.
                 This will be converted to YAML. Mutually exclusive with configFile.
-                
+
                 See example config.yaml in the package for the full schema.
               '';
               example = literalExpression ''
@@ -220,10 +220,10 @@
               };
 
               script = let
-                args = lib.concatStringsSep " " ([
-                  "-cf ${configFile}"
-                ] ++ lib.optionals cfg.disableKeyListener [ "--no-key-listener" ]
-                  ++ lib.optionals cfg.disablePlugins [ "--disable-plugins" ]);
+                args = lib.concatStringsSep " " (
+                  lib.optionals cfg.disableKeyListener [ "--no-key-listener" ]
+                  ++ lib.optionals cfg.disablePlugins [ "--disable-plugins" ]
+                );
               in ''
                 ${led-matrix-monitoring}/bin/led-matrix-monitor ${args}
               '';

@@ -4,6 +4,7 @@ import requests
 import os
 from zoneinfo import ZoneInfo
 from datetime import datetime, timedelta
+import numpy as np
 from functools import cache
 from threading import Timer
 import logging
@@ -11,10 +12,6 @@ import logging
 # Internal dependencies
 from led_mon.patterns import icons, letters_5_x_6
 from led_mon import drawing
-
-# External dependencies
-from iplocate import IPLocateClient
-import numpy as np
 
 OPENWEATHER_HOST = 'https://api.openweathermap.org'
 IPIFY_HOST = 'https://api.ipify.org'
@@ -48,6 +45,7 @@ def get_location_by_zip(zip_info, weather_api_key):
 # Cache results so we avoid exceeding the API rate limit
 # No need to invalidate cache since location per given IP address is generally fixed
 def get_location_by_ip(ip_api_key, ip):
+    from iplocate import IPLocateClient
     client = IPLocateClient(api_key=ip_api_key)
     result = client.lookup(ip)
     loc = result.latitude, result.longitude
