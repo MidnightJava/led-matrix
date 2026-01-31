@@ -1,9 +1,9 @@
 # Version Information
 
 ## Current Version
-- **Version**: 1.1.1
+- **Version**: 2.0.0
 - **Branch**: main
-- **Latest Commit**: c609efc2805484a23274845e13082d67f642e6e0
+- **Date**: 2026-01-31
 
 ## Usage with specific commit
 
@@ -17,6 +17,29 @@ led-matrix-monitoring = {
 ```
 
 ## Changelog
+
+### v2.0.0 (2026-01-31)
+- **Major Refactoring**:
+  - Modularized codebase with `led_mon/` package structure
+  - Better code organization and maintainability
+  - Proper Python module hierarchy
+- **NixOS Package Fixes**:
+  - Fixed installation paths for modularized structure
+  - Added missing dependencies: `python-dotenv`, `requests`
+  - All runtime files now properly co-located
+  - time_weather_plugin fully functional with lazy-loaded iplocate
+- **New Features**:
+  - Time and weather display plugins
+  - Support for config-local.yaml for user customization
+  - Enhanced .env file support for API keys
+  - Improved plugin system with better error handling
+- **Dependency Updates**:
+  - Downgraded numpy for PyInstaller compatibility
+  - Better handling of optional dependencies
+- **Bug Fixes**:
+  - Fixed 'invalid argument: -cf' error
+  - Lazy-loading of iplocate import (graceful degradation)
+  - Better error handling in plugin loading
 
 ### v1.1.1 (2025-11-20)
 - **Robustness Fixes**:
