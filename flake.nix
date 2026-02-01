@@ -47,11 +47,12 @@
           yamlFormat = pkgs.formats.yaml {};
 
           # Helper to convert old-style config to YAML
+          # Note: 'app' key must be present (set to null) for the Python code to work
           legacyToYaml = {
             duration = 10;
             quadrants = {
               top-left = [{
-                app = null;
+                app = null;  # Required by led_system_monitor.py
                 name = cfg.topLeft;
                 duration = 10;
                 animate = false;
