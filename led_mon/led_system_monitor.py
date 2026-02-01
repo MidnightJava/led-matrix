@@ -72,15 +72,21 @@ def find_keyboard_device():
     return None
 
 def get_config():
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    config_file_name = 'config-local.yaml'
-    config_file = os.path.join(current_dir, config_file_name)
-    if os.path.exists(config_file):
-        log.debug(f"using local config file {config_file}")
+    # Check for CONFIG_FILE environment variable first (used by NixOS module)
+    config_file = os.environ.get('CONFIG_FILE', None)
+    if config_file:
+        log.debug(f"Using config file from CONFIG_FILE env var: {config_file}")
     else:
-        config_file_name = 'config.yaml'
+        # Fall back to config-local.yaml or config.yaml in current directory
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_name = 'config-local.yaml'
         config_file = os.path.join(current_dir, config_file_name)
-        log.debug(f"Using default config file {config_file}")
+        if os.path.exists(config_file):
+            log.debug(f"Using local config file {config_file}")
+        else:
+            config_file_name = 'config.yaml'
+            config_file = os.path.join(current_dir, config_file_name)
+            log.debug(f"Using default config file {config_file}")
     with open(config_file, 'r') as f:
         return safe_load(f)
 
