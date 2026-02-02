@@ -93,7 +93,7 @@ stop_eq() {
     [[ -n "${EQ_PID:-}" ]] && kill "$EQ_PID" >/dev/null 2>&1 || true
 
     # Also make sure no stray processes remain
-    pkill -f "${EQ_CMD}" >/dev/null 2>&1 || true
+    pkill -f "${BASE_CMD}" >/dev/null 2>&1 || true
 
     # Reset EQ_PID
     EQ_PID=""
@@ -110,19 +110,15 @@ visual_cue() {
     local type="$1"
     case "$type" in
         speakers)
-            # Show horizontal bar for speakers
             ${BASE_CMD} --pattern all-on >/dev/null 2>&1
             ;;
         headphones)
-            # Show vertical bars for headphones
             ${BASE_CMD} --pattern zigzag >/dev/null 2>&1
             ;;
         bluetooth)
-            # Unknown source → flash everything briefly
             ${BASE_CMD} --pattern gradient >/dev/null 2>&1
             ;;
         *)
-            # Unknown source → flash everything briefly
             ${BASE_CMD} --pattern gradient >/dev/null 2>&1
             ;;
     esac
@@ -135,6 +131,7 @@ visual_cue() {
 # ---------------- Cleanup ----------------
 
 cleanup() {
+    # Ctrl-C will trigger two traps
     if [ $CLEANUP_FLAG -eq 1 ]; then return; fi
     CLEANUP_FLAG=1
     log "Restoring original input source: $ORIG_SOURCE"

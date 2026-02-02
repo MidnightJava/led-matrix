@@ -134,30 +134,13 @@ visual_cue() {
     sleep 0.6
 }
 
-# wire_filter() {
-#     local monitor="$1"
-
-#     log "→ Linking $monitor → led_eq_input"
-
-#     # Remove any existing links to avoid duplicates
-#     pw-link -d "$monitor" led_eq_input 2>/dev/null || true
-
-#     # Create the link
-#     pw-link "$monitor" led_eq_input
-
-#     # Make the filter output the default source
-#     pactl set-default-source led_eq_output
-# }
 wire_filter() {
     local monitor="$1"
 
     log "→ Wiring $monitor → led_eq → inputmodule-control"
 
-    # pw-link "${monitor}:monitor_FL" led_eq:input_FL
-    # pw-link "${monitor}:monitor_FR" led_eq:input_FR
-
-    pw-link alsa_output.pci-0000_c2_00.6.analog-stereo:monitor_FL led_eq:input_FL
-    pw-link alsa_output.pci-0000_c2_00.6.analog-stereo:monitor_FR led_eq:input_FR
+    pw-link "${monitor}:monitor_FL" led_eq:input_FL
+    pw-link "${monitor}:monitor_FR" led_eq:input_FR
 
     pactl set-default-source led_eq
 }
