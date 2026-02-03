@@ -3,9 +3,6 @@ set -euo pipefail
 
 # ---------------- Config ----------------
 BASE_CMD="inputmodule-control led-matrix"
-EQ_CMD="$BASE_CMD --input-eq"
-FALLBACK_CMD="$BASE_CMD --random-eq"
-CHECK_INTERVAL=1
 EQ_PID=""
 CLEANUP_FLAG=0
 
@@ -15,14 +12,6 @@ log() { echo "[$(date +'%H:%M:%S')] $*"; }
 
 pactl_ok() {
     pactl info >/dev/null 2>&1
-}
-
-wait_for_pactl() {
-    for _ in {1..20}; do
-        pactl_ok && return 0
-        sleep 0.25
-    done
-    return 1
 }
 
 current_sink() {
@@ -61,49 +50,9 @@ sink_type() {
     esac
 }
 
-fade_out() {
-    # Small pause to simulate fade
-    sleep 0.2
-}
-
-fade_in() {
-    sleep 0.2
-}
-
 notify_sink() {
     local type="$1"
     log "Notifying sink change: $type"
-    fade_out
-    sleep 0.1
-    fade_in
-}
-
-start_eq() {
-    stop_eq
-    if pactl_ok; then
-        $EQ_CMD &
-    else
-        $FALLBACK_CMD &
-    fi
-    EQ_PID=$!
-}
-
-stop_eq() {
-    # Kill the process we tracked
-    [[ -n "${EQ_PID:-}" ]] && kill "$EQ_PID" >/dev/null 2>&1 || true
-
-    # Also make sure no stray processes remain
-    pkill -f "${BASE_CMD}" >/dev/null 2>&1 || true
-
-    # Reset EQ_PID
-    EQ_PID=""
-}
-
-
-start_fallback() {
-    stop_eq
-    $FALLBACK_CMD >/dev/null 2>&1 &
-    EQ_PID=$!
 }
 
 visual_cue() {
@@ -122,9 +71,7 @@ visual_cue() {
             ${BASE_CMD} --pattern gradient >/dev/null 2>&1
             ;;
     esac
-
-    # Keep cue visible briefly
-    sleep 0.6
+    EQ_PID=$!
 }
 
 
@@ -135,7 +82,6 @@ cleanup() {
     if [ $CLEANUP_FLAG -eq 1 ]; then return; fi
     CLEANUP_FLAG=1
     log "Restoring original input source: $ORIG_SOURCE"
-    # stop_eq
     if pactl_ok; then
         pactl set-default-source "$ORIG_SOURCE" >/dev/null 2>&1 || true
     fi
@@ -156,10 +102,8 @@ set_default_source "$MONITOR"
 
 if wait_for_monitor_running "$MONITOR"; then
     log "→ Monitor ready: $MONITOR"
-    # start_eq
 else
-    log "⚠ Monitor not ready, using fallback EQ"
-    # start_fallback
+    log "⚠ Monitor not ready"
 fi
 
 # ---------------- Main Loop ----------------
@@ -171,26 +115,22 @@ pactl subscribe | while read -r line; do
             if [[ "$NEW_SINK" != "$CURRENT_SINK" && -n "$NEW_SINK" ]]; then
                 log "🔄 Sink change detected → $NEW_SINK"
 
-                # stop_eq
-
                 SINK_TYPE=$(sink_type "$NEW_SINK")
-                # fade_out
-                # visual_cue "$SINK_TYPE"
-                # fade_in
+                for _ in {1..20}; do
+                    visual_cue "$SINK_TYPE"
+                    sleep 0.1
+                done
+                [[ -n "${EQ_PID:-}" ]] && kill "$EQ_PID" >/dev/null 2>&1 || true
+                EQ_PID=""
+
 
                 MONITOR="$(monitor_name_for_sink "$NEW_SINK")"
                 log "→ Input now follows: $MONITOR"
                 set_default_source "$MONITOR"
 
                 if wait_for_monitor_running "$MONITOR"; then
-                    # start_eq
                     CURRENT_SINK="$NEW_SINK"
-                # else
-                #     log "⚠ Monitor never reached RUNNING/IDLE, using fallback"
-                #     # start_fallback
                 fi
-
-                # CURRENT_SINK="$NEW_SINK"
             fi
             ;;
     esac
