@@ -1,5 +1,0 @@
-Ubuntu/Debian
-sudo apt install pipewire pipewire-pulse wireplumber pulseaudio-utils
-
-Fedora
-sudo dnf install pipewire pipewire-pulseaudio wireplumber
