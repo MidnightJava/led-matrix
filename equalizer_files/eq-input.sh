@@ -138,7 +138,7 @@ cleanup() {
     if [ $CLEANUP_FLAG -eq 1 ]; then return; fi
     CLEANUP_FLAG=1
     log "Restoring original input source: $ORIG_SOURCE"
-    stop_eq
+    # stop_eq
     if pactl_ok; then
         pactl set-default-source "$ORIG_SOURCE" >/dev/null 2>&1 || true
     fi
@@ -159,10 +159,10 @@ set_default_source "$MONITOR"
 
 if wait_for_monitor_running "$MONITOR"; then
     log "→ Monitor ready: $MONITOR"
-    start_eq
+    # start_eq
 else
     log "⚠ Monitor not ready, using fallback EQ"
-    start_fallback
+    # start_fallback
 fi
 
 # ---------------- Main Loop ----------------
@@ -174,25 +174,26 @@ pactl subscribe | while read -r line; do
             if [[ "$NEW_SINK" != "$CURRENT_SINK" && -n "$NEW_SINK" ]]; then
                 log "🔄 Sink change detected → $NEW_SINK"
 
-                stop_eq
+                # stop_eq
 
                 SINK_TYPE=$(sink_type "$NEW_SINK")
-                fade_out
-                visual_cue "$SINK_TYPE"
-                fade_in
+                # fade_out
+                # visual_cue "$SINK_TYPE"
+                # fade_in
 
                 MONITOR="$(monitor_name_for_sink "$NEW_SINK")"
                 log "→ Input now follows: $MONITOR"
                 set_default_source "$MONITOR"
 
                 if wait_for_monitor_running "$MONITOR"; then
-                    start_eq
-                else
-                    log "⚠ Monitor never reached RUNNING/IDLE, using fallback"
-                    start_fallback
+                    # start_eq
+                    CURRENT_SINK="$NEW_SINK"
+                # else
+                #     log "⚠ Monitor never reached RUNNING/IDLE, using fallback"
+                #     # start_fallback
                 fi
 
-                CURRENT_SINK="$NEW_SINK"
+                # CURRENT_SINK="$NEW_SINK"
             fi
             ;;
     esac
