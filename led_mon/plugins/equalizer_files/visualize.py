@@ -5,9 +5,10 @@ import time
 import os
 import re
 import threading
+from threading import Timer
 import argparse
 import logging
-import queue
+from enum import Enum
 import shutil
 import signal
 import sys
@@ -35,7 +36,11 @@ logging.basicConfig(
 
 log = logging.getLogger(__name__)
 
+class DeviceType(Enum):
+    SOURCE = 1
+    SINK = 2
 
+SOURCE_CHECK_INTERVAL_SEC = 1
 
 # Configuration
 SAMPLE_RATE = 48000
@@ -103,31 +108,6 @@ buffer_lock = threading.Lock()
 # Lock for writing to LED matrix device
 device_lock = threading.Lock()
 
-### Pulse Audio Event listener to detect changes to default source ###
-######################################################################
-event_queue = queue.Queue()  # to send events to main thread
-
-def pulse_event_handler(ev):
-    event_queue.put(ev)  # send to main thread
-
-def pulse_listener_thread():
-    with pulsectl.Pulse('led-visualizer-events') as pulse:
-        pulse.event_mask_set('server')  # only server changes (includes default source/sink)
-        pulse.event_callback_set(pulse_event_handler)
-        while True:
-            try:
-                pulse.event_listen(timeout=5)  # blocks 5s at a time; check queue or stop flag
-            except KeyboardInterrupt:
-                break
-            except pulsectl.PulseError as e:
-                print(f"Pulse error: {e}")
-                break
-
-# Start listener in background
-listener = threading.Thread(target=pulse_listener_thread, daemon=True)
-listener.start()
-######################################################################
-
 def audio_callback(indata, frames, time_info, status):
     global audio_buffer
     with buffer_lock:
@@ -147,38 +127,76 @@ def get_notification_pattern(source):
         # Other
         return 'gradient'
     
-def get_default_source():
+def draw_source_change_cue(source):
+    pattern = get_notification_pattern(source)
+    cmd = [
+            MODUE_CONTROL_APP,
+            '--serial-dev', SERIAL_DEV,
+            'led-matrix',
+            '--pattern',
+            pattern
+    ]
+    with device_lock:
+        for _ in range(7):
+            subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print(f"Draw {pattern}")
+        
+def get_default_device(dev_type: DeviceType):
     with Pulse() as pulse_tmp:  # Temporary connection to query
-                server_info = pulse_tmp.server_info()
-                new_source = server_info.default_source_name
-                return new_source
-            
-current_source = get_default_source()
-original_source = current_source
-log.debug(f"Original default source: {original_source}")
+        server_info = pulse_tmp.server_info()
+        new_dev = \
+            server_info.default_source_name if dev_type == DeviceType.SOURCE \
+            else server_info.default_sink_name if dev_type == DeviceType.SINK \
+            else None
+        return new_dev
+    
+last_known_sink = None
+    
+# Pipewire is supposed to automatically make the default source track the default sink's monitor, but the
+# capability is fragile and can sometimes be permanently broken. So we track sink changes and set the default
+# source to its monitor, to ensure continued data flow. We also draw a visual cue identifying the new source.
+def force_monitor_source():
+    global last_known_sink
+    try:
+        current_sink = get_default_device(DeviceType.SINK)
+
+        if current_sink == last_known_sink or current_sink is None:
+            Timer(SOURCE_CHECK_INTERVAL_SEC, force_monitor_source).start()
+            return
+
+        expected_source = f"{current_sink}.monitor"
+        current_source = get_default_device(DeviceType.SOURCE)
+
+        if current_source != expected_source and current_source is not None:
+            log.info(f"New sink detected: {current_sink}")
+            subprocess.run(
+                ['pactl', 'set-default-source', expected_source],
+                check=True,
+                capture_output=True,
+                text=True
+            )
+            # Verify after set
+            time.sleep(0.2)  # tiny settle time
+            verified = get_default_device(DeviceType.SOURCE)
+            if verified == expected_source:
+                log.info(f"Default source changed: {current_source} → {expected_source}")
+                draw_source_change_cue(expected_source)
+            else:
+                log.warning(f"Failed to change default source: still {verified}")
+
+        last_known_sink = current_sink
+
+    except subprocess.CalledProcessError as e:
+        log.error(f"Failed to check/fix default source: {e}")
+    except Exception as e:
+        log.error(f"Unexpected error in force_monitor_source: {e}")
+    Timer(SOURCE_CHECK_INTERVAL_SEC, force_monitor_source).start()
+    
+Timer(SOURCE_CHECK_INTERVAL_SEC, force_monitor_source).start()
 
 def update_leds():
     global event_queue, current_source
     while True:
-        if not event_queue.empty():
-            ev = event_queue.get(timeout=1)  # non-blocking check
-            if ev.t == 'change':
-                new_source = get_default_source()
-                if new_source != current_source:
-                    log.debug(f"New default source: {new_source}")
-                    pattern = get_notification_pattern(new_source)
-                    cmd = [
-                        MODUE_CONTROL_APP,
-                        '--serial-dev', SERIAL_DEV,
-                        'led-matrix',
-                        '--pattern',
-                        pattern
-                    ]
-                    with device_lock:
-                        for _ in range(7):
-                            subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    current_source = new_source
-
         with buffer_lock:
             chunk = audio_buffer[:, CHANNEL_INDEX]  # extract left or right channel only
 
@@ -216,9 +234,6 @@ def update_leds():
 
         time.sleep(UPDATE_RATE)
 
-# Start audio capture from default source, and it will follow output device selection changes.
-# With device="default" PortAudio will connect to a virtual source, a .monitor source
-# created by PipeWire that dynamically follows the default sink as it changes.
 stream = sd.InputStream(
     samplerate=SAMPLE_RATE,
     channels=2,
