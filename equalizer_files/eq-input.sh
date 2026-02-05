@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ---------------- Config ----------------
-BASE_CMD="inputmodule-control led-matrix"
+BASE_CMD="inputmodule-control --serial-dev /dev/ttyACM0 led-matrix"
 EQ_PID=""
 CLEANUP_FLAG=0
 
@@ -116,10 +116,10 @@ pactl subscribe | while read -r line; do
                 log "🔄 Sink change detected → $NEW_SINK"
 
                 SINK_TYPE=$(sink_type "$NEW_SINK")
-                for _ in {1..20}; do
-                    visual_cue "$SINK_TYPE"
-                    sleep 0.1
-                done
+                # for _ in {1..5}; do
+                #     visual_cue "$SINK_TYPE"
+                #     sleep 0.01
+                # done
                 [[ -n "${EQ_PID:-}" ]] && kill "$EQ_PID" >/dev/null 2>&1 || true
                 EQ_PID=""
 
