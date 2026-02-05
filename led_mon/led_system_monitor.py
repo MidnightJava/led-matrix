@@ -9,6 +9,7 @@ import sys
 import os
 from collections import defaultdict
 import logging
+import traceback
 
 # Internal Dependencies
 from led_mon.drawing import draw_outline_border, draw_ids, draw_id, draw_app, draw_app_border, DrawingThread
@@ -412,6 +413,7 @@ def app(args, base_apps, plugin_apps):
                         log.error(f"Unrecognized app {arg_name} for {loc} {panel}")
                     except Exception as e:
                         log.error(f"Error {e} with app {arg_name} for {loc} {panel}")
+                        traceback.print_exc()
                     # Single border draw for mem and bat together
                     if arg_name == 'mem-bat': arg_name = 'mem'
                     draw_app_border(arg_name, grid, background_value, idx)
@@ -429,7 +431,6 @@ def app(args, base_apps, plugin_apps):
         except KeyboardInterrupt:
             raise
         except Exception as e:
-            import traceback
             log.error(f"Error in main loop: {e}")
             traceback.print_exc()
             time.sleep(1.0)

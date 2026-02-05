@@ -5,12 +5,22 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python Debugger: led_mon Module",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "led_mon.led_system_monitor",
+            "args": []
+        },
+        {
             "name": "Python Debugger: Current File",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["--channel", "left"]
+            "args": [
+                "--channel",
+                "left"
+            ]
         },
         {
             "name": "Python: led app",

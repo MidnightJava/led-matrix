@@ -67,40 +67,7 @@ def scale_rms(rms, min_db=-60, max_db=0):
     normalized = np.clip((db - min_db) / (max_db - min_db), 0, 1)
     return int(normalized * 34)
 
-# Parse command-line arguments
-parser = argparse.ArgumentParser(description="LED Matrix Audio Visualizer - Single Channel")
-parser.add_argument(
-    '--channel',
-    choices=['left', 'right'],
-    required=True,
-    help="Which channel and device to process: 'left' or 'right'"
-)
-parser.add_argument(
-    '--use-easyeffects',
-    action='store_true',
-    help="Use EasyEffects upstream processing (skip Python bandpass filters)"
-)
-parser.add_argument(
-    '--serial-dev-left',
-    default='/dev/ttyACM0',   # ← customize these defaults or override via args
-    help="Serial device for left channel"
-)
-parser.add_argument(
-    '--serial-dev-right',
-    default='/dev/ttyACM1',
-    help="Serial device for right channel"
-)
-args = parser.parse_args()
 
-# Determine channel index and serial device
-if args.channel == 'left':
-    CHANNEL_INDEX = 0  # left = column 0 in stereo buffer
-    SERIAL_DEV = args.serial_dev_left
-else:
-    CHANNEL_INDEX = 1  # right = column 1
-    SERIAL_DEV = args.serial_dev_right
-
-USE_EASY_EFFECTS = args.use_easyeffects
 
 # Shared audio buffer and lock
 audio_buffer = np.zeros((CHUNK_SIZE, 2), dtype=np.float32)
@@ -150,13 +117,11 @@ def get_default_device(dev_type: DeviceType):
             else None
         return new_dev
     
-last_known_sink = None
-    
 # Pipewire is supposed to automatically make the default source track the default sink's monitor, but the
 # capability is fragile and can sometimes be permanently broken. So we track sink changes and set the default
 # source to its monitor, to ensure continued data flow. We also draw a visual cue identifying the new source.
 def force_monitor_source():
-    global last_known_sink
+    last_known_sink = None
     try:
         current_sink = get_default_device(DeviceType.SINK)
 
@@ -191,73 +156,104 @@ def force_monitor_source():
     except Exception as e:
         log.error(f"Unexpected error in force_monitor_source: {e}")
     Timer(SOURCE_CHECK_INTERVAL_SEC, force_monitor_source).start()
-    
-Timer(SOURCE_CHECK_INTERVAL_SEC, force_monitor_source).start()
 
-def update_leds():
-    global event_queue, current_source
-    while True:
-        with buffer_lock:
-            chunk = audio_buffer[:, CHANNEL_INDEX]  # extract left or right channel only
-
-        levels = []
-
-        if USE_EASY_EFFECTS:
-            # EasyEffects mode: audio already EQ'd → measure energy in each band
-            for center_freq in BAND_CENTERS:
-                # Use wide-ish windows to capture EasyEffects' output without double-filtering
-                low = center_freq * 0.75
-                high = center_freq * 1.35
-                sos = butter(2, [low, high], btype='band', fs=SAMPLE_RATE, output='sos')
-                filtered = sosfiltfilt(sos, chunk)
-                rms = np.sqrt(np.mean(filtered ** 2))
-                level = scale_rms(rms)
-                levels.append(level)
-
-        else:
-            # Python mode: apply our fixed narrow bandpass filters
-            for sos in filters:
-                filtered = sosfiltfilt(sos, chunk)
-                rms = np.sqrt(np.mean(filtered ** 2))
-                level = scale_rms(rms)
-                levels.append(level)
-
-        cmd = [
-            MODUE_CONTROL_APP,
-            '--serial-dev', SERIAL_DEV,
-            'led-matrix',
-            '--eq',
-        ] + [str(l) for l in levels]
-        print(f"Levels {levels}")
-        with device_lock:
-            subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-        time.sleep(UPDATE_RATE)
-
-stream = sd.InputStream(
-    samplerate=SAMPLE_RATE,
-    channels=2,
-    blocksize=CHUNK_SIZE,
-    callback=audio_callback,
-    device='default'
-)
-
-update_thread = threading.Thread(target=update_leds, daemon=True)
-update_thread.start()
-
-cleanup_flag = False
-
-def cleanup(sig=None, frame=None):
-    sys.exit(0)
-    
-signal.signal(signal.SIGINT, cleanup)
-signal.signal(signal.SIGTERM, cleanup)
-
-
-with stream:
-    log.debug(f"Running equalizer for {args.channel} channel on {SERIAL_DEV} with {'EasyEffects' if USE_EASY_EFFECTS else 'Python'} filter")
-    try:
+def main(channel, external_filter, device_name):
+    def update_leds():
+        global event_queue, current_source
         while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        cleanup()
+            with buffer_lock:
+                chunk = audio_buffer[:, channel]  # extract left or right channel only
+
+            levels = []
+
+            if external_filter:
+                # EasyEffects mode: audio already EQ'd → measure energy in each band
+                for center_freq in BAND_CENTERS:
+                    # Use wide-ish windows to capture EasyEffects' output without double-filtering
+                    low = center_freq * 0.75
+                    high = center_freq * 1.35
+                    sos = butter(2, [low, high], btype='band', fs=SAMPLE_RATE, output='sos')
+                    filtered = sosfiltfilt(sos, chunk)
+                    rms = np.sqrt(np.mean(filtered ** 2))
+                    level = scale_rms(rms)
+                    levels.append(level)
+
+            else:
+                # Python mode: apply our fixed narrow bandpass filters
+                for sos in filters:
+                    filtered = sosfiltfilt(sos, chunk)
+                    rms = np.sqrt(np.mean(filtered ** 2))
+                    level = scale_rms(rms)
+                    levels.append(level)
+
+            cmd = [
+                MODUE_CONTROL_APP,
+                '--serial-dev', device_name,
+                'led-matrix',
+                '--eq',
+            ] + [str(l) for l in levels]
+            print(f"Levels {levels}")
+            with device_lock:
+                subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            time.sleep(UPDATE_RATE)
+    Timer(SOURCE_CHECK_INTERVAL_SEC, force_monitor_source).start()
+    stream = sd.InputStream(
+        samplerate=SAMPLE_RATE,
+        channels=2,
+        blocksize=CHUNK_SIZE,
+        callback=audio_callback,
+        device='default'
+    )
+
+    update_thread = threading.Thread(target=update_leds, daemon=True)
+    update_thread.start()
+
+    def cleanup(sig=None, frame=None):
+        sys.exit(0)
+        
+    signal.signal(signal.SIGINT, cleanup)
+    signal.signal(signal.SIGTERM, cleanup)
+
+    with stream:
+        log.debug(f"Running equalizer for {channel} channel on {device_name} with {'EasyEffects' if external_filter else 'Python'} filter")
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            cleanup()
+            
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="LED Matrix Audio Visualizer - Single Channel")
+    parser.add_argument(
+        '--channel',
+        choices=['left', 'right'],
+        required=True,
+        help="Which channel and device to process: 'left' or 'right'"
+    )
+    parser.add_argument(
+        '--use-easyeffects',
+        action='store_true',
+        help="Use EasyEffects upstream processing (skip Python bandpass filters)"
+    )
+    parser.add_argument(
+        '--serial-dev-left',
+        default='/dev/ttyACM0',   # ← customize these defaults or override via args
+        help="Serial device for left channel"
+    )
+    parser.add_argument(
+        '--serial-dev-right',
+        default='/dev/ttyACM1',
+        help="Serial device for right channel"
+    )
+    args = parser.parse_args()
+
+    if args.channel == 'left':
+        channel = 0  # left = column 0 in stereo buffer
+        serial_dev = args.serial_dev_left
+    else:
+        channel = 1  # right = column 1
+        serial_dev = args.serial_dev_right
+
+    use_external_filter = args.use_easyeffects
+    main(channel=channel, external_filter=use_external_filter, device_name=serial_dev)
