@@ -5,14 +5,14 @@ import os
 from zoneinfo import ZoneInfo
 from datetime import datetime, timedelta
 import numpy as np
-from functools import cache
-from threading import Timer
+import threading
 import logging
+from collections import defaultdict
 
 # Internal dependencies
 from led_mon.patterns import icons, letters_5_x_6
 from led_mon import drawing
-from led_mon.equalizer_files.visualize import main as equalizer
+from led_mon.equalizer_files.visualize import Equalizer
 from led_mon.led_system_monitor import discover_led_devices
 
 log = logging.getLogger(__name__)
@@ -33,22 +33,30 @@ log.setLevel(log_level)
 
 ####  Monitor functions ####
 
+equalizers = {}
+
 def run_equalizer(_, grid, foreground_value, idx, **kwargs):
     external_filter = kwargs['external-filter']
+    device = kwargs['device']
     # device = ('<port>', '<name>')
     devices: tuple[str, str] = discover_led_devices()
-    if kwargs['device'] == 'left':
+    if device == 'left':
         channel = 0
-        device = devices[0][1]
+        device_name = devices[0][1]
     elif kwargs['device'] == 'right':
         channel = 1
-        device = devices[1][1]
+        device_name = devices[1][1]
     else:
         log.error(f"Unexpected device arg {kwargs['device']}")
-    equalizer(channel=channel, external_filter=external_filter, device_name=device)
+    if not device in equalizers:
+        equalizers[device] = Equalizer()
+        eq_thread = threading.Thread(target=lambda: equalizers[device].run(channel=channel, external_filter=external_filter, device_name=device_name), daemon=True)
+        eq_thread.start()
     
-def dispose_equalizer():
-    pass
+def dispose_equalizer(**kwargs):
+    device = kwargs
+    equalizers[device].stop()
+    del equalizers[device]
 
 #### Implement high-level drawing functions to be called by app functions below ####
 

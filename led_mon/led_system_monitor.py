@@ -416,7 +416,8 @@ def app(args, base_apps, plugin_apps):
                         traceback.print_exc()
                     # Single border draw for mem and bat together
                     if arg_name == 'mem-bat': arg_name = 'mem'
-                    draw_app_border(arg_name, grid, background_value, idx)
+                    if kwargs.get('border', True):
+                        draw_app_border(arg_name, grid, background_value, idx)
                 do_animate = None
                 if idx_changed[draw_queue]:
                     do_animate = animate
@@ -425,7 +426,8 @@ def app(args, base_apps, plugin_apps):
                 if latch_key_combo:
                     if (animating_left and panel == 'left') or (animating_right and panel == 'right'):
                         do_animate = True
-                draw_queue.put((grid, do_animate))
+                if animate is None:
+                    draw_queue.put((grid, do_animate))
             latch_key_combo = False
             time.sleep(0.1)     
         except KeyboardInterrupt:
