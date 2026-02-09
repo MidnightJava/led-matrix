@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# No longer used. Tracks current sink and sets current source to its monitor. Now handled by visualize.py,
+# integrated with LED notificaiton of source switch.
 set -euo pipefail
 
 # ---------------- Config ----------------

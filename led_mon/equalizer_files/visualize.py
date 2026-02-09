@@ -12,11 +12,16 @@ from enum import Enum
 import shutil
 import signal
 import sys
+from pathlib import Path
+from led_mon import shared_state
+from led_mon.drawing import DrawingThread
 
 # Internal Dependencies
-from led_mon.led_system_monitor import discover_led_devices
+from led_mon.shared_state import discover_led_devices
+from led_mon.patterns import id_patterns
+import queue
 
-# External ependencies
+# External Dependencies
 import numpy as np
 import sounddevice as sd
 from scipy.signal import butter, sosfiltfilt
@@ -43,6 +48,8 @@ class DeviceType(Enum):
     SINK = 2
 
 SOURCE_CHECK_INTERVAL_SEC = 1
+
+ZERO_FRAME_NOTIFY_DELAY_SEC = 2
 
 # Configuration
 SAMPLE_RATE = 48000
@@ -96,10 +103,10 @@ def get_notification_pattern(source):
         # Other
         return 'gradient'
     
-def draw_source_change_cue(source, device_name):
+def draw_source_change_cue(source):
     pattern = get_notification_pattern(source)
     devices= discover_led_devices()
-    # Only one instance will detect the source change, so it notifies both devices
+    # Only one instance will usually detect the source change, so it notifies both devices
     cmd_1 = [
             MODUE_CONTROL_APP,
             '--serial-dev', devices[0][1],
@@ -118,11 +125,11 @@ def draw_source_change_cue(source, device_name):
     else:
         cmd_2 = None
     with device_lock:
-        for _ in range(7):
-            subprocess.call(cmd_1, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            if cmd_2:
-                subprocess.call(cmd_2, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        
+        if not shared_state.key_press_active:
+            for _ in range(3):
+                subprocess.call(cmd_1, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                if cmd_2:
+                    subprocess.call(cmd_2, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 def get_default_device(dev_type: DeviceType):
     with Pulse() as pulse_tmp:  # Temporary connection to query
         server_info = pulse_tmp.server_info()
@@ -134,11 +141,17 @@ def get_default_device(dev_type: DeviceType):
     
 class Equalizer():
     
-    def __init__(self):
+    def __init__(self, device_location):
         self.done = False
+        self.device_location = device_location
+        self.queue = queue.Queue(2)
+        self.drawing_thread = DrawingThread(device_location, self.queue)
+        self.drawing_thread.start()
         
     def stop(self):
         self.done = True
+        self.queue.put(None)  # Sentinel to stop DrawingThread
+        log.debug(f"Stop equalizer on device {self.device_name}")
     
     # Pipewire is supposed to automatically make the default source track the default sink's monitor, but the
     # capability is fragile and can sometimes be permanently broken. So we track sink changes and set the default
@@ -149,7 +162,8 @@ class Equalizer():
             current_sink = get_default_device(DeviceType.SINK)
 
             if current_sink == last_known_sink or current_sink is None:
-                Timer(SOURCE_CHECK_INTERVAL_SEC, self.force_monitor_source).start()
+                if not self.done:
+                    Timer(SOURCE_CHECK_INTERVAL_SEC, self.force_monitor_source).start()
                 return
 
             expected_source = f"{current_sink}.monitor"
@@ -167,7 +181,7 @@ class Equalizer():
                 verified = get_default_device(DeviceType.SOURCE)
                 if verified == expected_source:
                     log.info(f"Default source changed: {current_source} → {expected_source}")
-                    draw_source_change_cue(expected_source, self.device_name)
+                    draw_source_change_cue(expected_source)
                 else:
                     log.warning(f"Failed to change default source: still {verified}")
 
@@ -177,15 +191,28 @@ class Equalizer():
             log.error(f"Failed to check/fix default source: {e}")
         except Exception as e:
             log.error(f"Unexpected error in force_monitor_source: {e}")
-        Timer(SOURCE_CHECK_INTERVAL_SEC, self.force_monitor_source).start()
+        if not self.done:
+            Timer(SOURCE_CHECK_INTERVAL_SEC, self.force_monitor_source).start()
         
     def cleanup(self, sig=None, frame=None):
-            self.stop()
+        self.stop()
+        
+    def draw_id(self, device_name):
+        grid = np.zeros((9,34), dtype = int)
+        grid[:,:] = id_patterns['equalizer_paused'] * shared_state.foreground_value
+        self.queue.put((grid, False))
 
     def run(self, channel, external_filter, device_name):
+        if not Path(MODUE_CONTROL_APP).is_file():
+            log.error("The executable file inputmodule-control was not found on the executable Path. The equalizer will not run.")
+            return
         self.device_name = device_name
+        log.debug(f"Run equalizer on device {device_name}")
+        global base_time
+        base_time = time.time()
+        
         def update_leds():
-            global event_queue, current_source
+            global event_queue, current_source, base_time
             while not self.done:
                 with buffer_lock:
                     chunk = audio_buffer[:, channel]  # extract left or right channel only
@@ -220,10 +247,15 @@ class Equalizer():
                 ] + [str(l) for l in levels]
                 # print(f"{device_name} {levels}")
                 with device_lock:
-                    subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    if not shared_state.key_press_active:
+                        if sum(levels) == 0 and time.time() - base_time > ZERO_FRAME_NOTIFY_DELAY_SEC:
+                            self.draw_id(device_name)
+                        elif sum(levels) > 0:
+                            base_time = time.time()
+                            subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
                 time.sleep(UPDATE_RATE)
-        Timer(SOURCE_CHECK_INTERVAL_SEC, self.force_monitor_source).start()
+        self.force_monitor_source()
         stream = sd.InputStream(
             samplerate=SAMPLE_RATE,
             channels=2,
@@ -238,10 +270,12 @@ class Equalizer():
         with stream:
             log.debug(f"Running equalizer for {channel} channel on {device_name} with {'EasyEffects' if external_filter else 'Python'} filter")
             try:
-                while True:
-                    time.sleep(1)
+                while not self.done:
+                    time.sleep(0.1)
             except KeyboardInterrupt:
                 self.cleanup()
+            finally:
+                self.stream = None
             
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="LED Matrix Audio Visualizer - Single Channel")

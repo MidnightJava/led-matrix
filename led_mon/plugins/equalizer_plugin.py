@@ -1,19 +1,15 @@
 # Built In Dependencies
 from statistics import mean
-import requests
 import os
-from zoneinfo import ZoneInfo
-from datetime import datetime, timedelta
 import numpy as np
 import threading
 import logging
-from collections import defaultdict
 
 # Internal dependencies
-from led_mon.patterns import icons, letters_5_x_6
+from led_mon.patterns import letters_5_x_6, numerals
 from led_mon import drawing
 from led_mon.equalizer_files.visualize import Equalizer
-from led_mon.led_system_monitor import discover_led_devices
+from led_mon.shared_state import discover_led_devices
 
 log = logging.getLogger(__name__)
 LOG_LEVELS = {
@@ -26,51 +22,49 @@ LOG_LEVELS = {
 log_level = LOG_LEVELS[os.environ.get("LOG_LEVEL", "warning").lower()]
 log.setLevel(log_level)
 
-
-### Helper functions ###
-
-
-
 ####  Monitor functions ####
 
 equalizers = {}
 
 def run_equalizer(_, grid, foreground_value, idx, **kwargs):
     external_filter = kwargs['external-filter']
-    device = kwargs['device']
-    # device = ('<port>', '<name>')
+    side = kwargs['side']
+    # device => ('<port>', '<name>')
     devices: tuple[str, str] = discover_led_devices()
-    if device == 'left':
+    if side == 'left':
         channel = 0
-        device_name = devices[0][1]
-    elif kwargs['device'] == 'right':
+        device = devices[0]
+    elif side == 'right':
         channel = 1
-        device_name = devices[1][1]
+        device = devices[1]
     else:
         log.error(f"Unexpected device arg {kwargs['device']}")
-    if not device in equalizers:
-        equalizers[device] = Equalizer()
-        eq_thread = threading.Thread(target=lambda: equalizers[device].run(channel=channel, external_filter=external_filter, device_name=device_name), daemon=True)
+    if not side in equalizers:
+        equalizers[side] = Equalizer(device_location = device[0])
+        eq_thread = threading.Thread(target=lambda: equalizers[side].run(channel=channel, external_filter=external_filter, device_name=device[1]), daemon=True)
         eq_thread.start()
+    if len(equalizers) > 2:
+        log.info(f"run_equalizer: Active equalizers: {len(equalizers)}")
     
 def dispose_equalizer(**kwargs):
-    device = kwargs
-    equalizers[device].stop()
-    del equalizers[device]
+    side = kwargs['side']
+    if side in equalizers:
+        equalizers[side].stop()
+        # Optional (if resource leak found): Join to ensure clean exit
+        # But since daemon, not strictly needed; helps for debugging
+        # equalizers[side].drawing_thread.join(timeout=2)
+        del equalizers[side]
+    if len(equalizers) > 2:
+        log.info(f"dispose_equalizer: Active equalizers: {len(equalizers)}")
 
 #### Implement high-level drawing functions to be called by app functions below ####
 
 draw_app = getattr(drawing, 'draw_app')
 
-    
-def run_equaizer(arg, grid, foreground_value, idx, **kwargs):
-    panel = kwargs['panel']
-    use_external_filter = kwargs['external-filter']
-
 #### Implement low-level drawing functions ####
 # These functions will be dynamically imported by drawing.py and called by their corresponding app function
 
-# No implementations needed since scrit draws continuoulsy on grid until dispose function is called
+# No implementations needed since the script draws continuoulsy on grid until dispose function is called
 direct_draw_funcs = {
     "equalizer": {
         "fn": lambda *x: None,
@@ -97,7 +91,7 @@ app_funcs = [
 # These items will be dynamically imported by drawing.py
 
 id_patterns = {
-    "time": np.concatenate((np.zeros((2,9)), letters_5_x_6["T"], np.zeros((2,9)), letters_5_x_6["I"], np.zeros((2,9)),letters_5_x_6["M"], np.zeros((2,9)), letters_5_x_6["E"], np.zeros((2,9)))).T,
-    "weather_current": np.concatenate((np.zeros((2,9)), letters_5_x_6["W"], np.zeros((2,9)), letters_5_x_6["T"], np.zeros((2,9)),letters_5_x_6["R"], np.zeros((2,9)), letters_5_x_6["C"], np.zeros((2,9)))).T,
-    "weather_forecast": np.concatenate((np.zeros((2,9)), letters_5_x_6["W"], np.zeros((2,9)), letters_5_x_6["T"], np.zeros((2,9)),letters_5_x_6["R"], np.zeros((2,9)), letters_5_x_6["F"], np.zeros((2,9)))).T
+    "equalizer": np.concatenate((np.zeros((10,9)), letters_5_x_6["E"], np.zeros((2,9)), letters_5_x_6["Q"], np.zeros((10,9)))).T,
+    "equalizer_paused": np.concatenate((np.zeros((5,9)), letters_5_x_6["E"], np.zeros((2,9)), letters_5_x_6["Q"],  np.zeros((3,9)), numerals["0"], np.zeros((5,9)))).T,
+
 }

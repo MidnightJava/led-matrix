@@ -56,6 +56,9 @@ The `build_and_install.sh` script will automatically detect your Linux distribut
 
 The build and installation instructions and scripts for this project assume that every Python installation action is done in a virtual environment. If you want to perform a global installation, it's up to you to make whatever changes are needed to make that work. Also, please note that a misconfigured virtual environment will result in either build-time or run-time failures. Generally, you should 1) Install package dependencies for the selected virtual environment tool 2) Install the tool 3) Configure the tool per instructions provided by the tool provider 3) Create a virtual environment and activate it 4) Ensure that the virtual environment is currently activated in any shell from which you perform a Python installation, whether launching python directly or invoking a build or installation script. The error message `python: command not found` is a likely indicator of a missing or misconfigured virtual environment.
 
+## Plugins
+Application capabilities can be extended by including plugins. See `plugins/plugins-README.md` for more info. See the plugin configuration near the bottom of this page for plugin-specific configuration instructions.
+
 ## Manual Installation (run the app from the command line in the foreground)
 
 ### For Ubuntu/Debian users:
@@ -157,10 +160,10 @@ If the service fails to start with display connection errors:
 
 ```bash
 # Check service status
-systemctl status led-matrix-monitoring
+systemctl --user status led-matrix-monitoring
 
 # View logs
-journalctl -u led-matrix-monitoring -f
+journalctl --user -u led-matrix-monitoring -f
 
 # Common error: "failed to acquire X connection: Bad display name"
 # Solution: Ensure DISPLAY environment variable is set in service override
@@ -174,7 +177,7 @@ For automated continuous execution, you can run as a systemd service instead:
 # The service runs as system user led_mon (created by the script if needed)
 ./build_andOnstall.sh
 # manage the service
-systemctl start|stop|status fwledmatrix.service
+systemctl --user start|stop|status fwledmatrix.service
 # The service config file is at /etc/systemd/system/led_mon.service.
 # The service executable is at /opt/led_mon/led_mon (sym-linked to /usr/local/bin/led_mon)
 ```
@@ -218,7 +221,7 @@ sudo udevadm trigger
 #### Option 3: Run as Root (Not Recommended)
 While running as root will bypass permission issues, this is not recommended for security reasons:
 ```bash
-sudo python3 led_system_monitor.py
+sudo python3 -m led_mon.led_system_monitor
 ```
 
 ## Keyboard Input Access (Optional)
@@ -262,19 +265,83 @@ cd led-matrix
 python -m led_mon.led_system_monitor [--help] [--no-key-listener] [--disable-plugins] [--list-apps]
 python -m led_mon.led_system_monitor --help #For more verbose help info
 ```
+
 ## Run as a Linux service
 ENter the top-level project directory, and ensure that a virtual environment is configured and activated.
 ```
 ./build_and_install.sh
-sudo systemctl start|stop|restart|status fwledmonitor
+systemctl --user start|stop|restart|status fwledmonitor
 ```
+
 ## Keyboard Shortcut
 * Alt+I: displays app names in each quadrant while keys are pressed
 * Disable key listener with `--no-key-listener` program arg
 * To use the key listener, the app must have read permission on the keyboard device (e.g /dev/input/event7). The service runs under a system account that has the required access. If you want to use the key listener while running the app manually, you need to add your user account to the `input` group and ensure there is a group read permission on the keyboard device. **NB:** Consider the implications of this. Any program running as a user in the `input` group will be able to capture your keystrokes.
+
 ## Plugin Development
-* Add a file in the `plugins` dir with a name that matches the blob pattern `*_plugin.py`
-* See `temp_fan_plugin.py` for an implementation example
+* See `plugins/plugin-README.md` for instructions
+
+## Plugin Configuration and Dependencies
+See `config-README.md` for general configuration instructions. Here we provide plugin-specific configuration, dependency, and other information. Plugins that have no special configuration or depenency requirements are not adderssed here.
+
+**Time** (provided by `time_weather_plugin.py`):
+- Configure the following arguments in the config file (`app->args`)
+  - fmt_24_hour: true|false
+
+**Weather** (provided by `time_weather_plugin.py`):
+You must specify app arguments in the config file and set one or more environment variables.
+- Weather app arguments (`app->ags`)
+  - To enable online lookup of local weather information, the app must know your location. Choose one or more of the options.
+    - # Specify country-specific zip and [ISO 3166 digraph code](https://www.iban.com/country-codes)
+    - zip_info: ["your zip", "country code"] 
+    - lat_lon: [<lat>, <lon>]
+    - Set env var IP_LOCATE_API_KEY in .env. Get a free API key from https://iplocate.io
+  - # Display temperature in Celsius, Farenheit, or Kelinv. Default is metric
+  - units: imperial|metric|standard
+  - # Show current or forecast weather. Default is current
+  - forecast: true|false
+  - # Day offset (GMT time) for forecast (max 5, default 1)
+  - forecast_day: n # Day offset of forecast (1 - 5)
+  - # Hour offset (GMT time) for forecast on selected day. One of 0, 3, 6, 9, 12, 15, 18, 21. default is 12
+    # If selected time is more than 5 * 24 hours from present time, the latest available forecast will be shown
+  - forecast_hour: n #Hour offset (GMT time) for forecast on selected day. One of 0, 3, 6, 9, 12, 15, 18, 21. default is 12
+    # Override the key used to display the app ID. This means if forecast is true, use weather_forecast, otherwise use weather_current
+  - id_key_override: [forecast, weather_forecast, weather_current]
+
+**Snapshot** (built-in app, not a plugin):
+Configure the following arguments in the config file (`app->args`)
+- # Name of the JSON file with a pattern to display
+- file: <file name>
+- # The file path relative to the module dir (`led_mon`)
+- path: <path>
+- # The subir of the file, relative to path
+- panel: left|right|<xxx>
+
+**Equalizer** (provided by `equalizer_plugin.py`)
+Set the following app settings. These are direct properties of the equalizer app, not args
+# Set to true if the app will handle drawing to the grid the entire time it is active. If false, the app draws a static snapshot on every invocation. Default is false
+- persistent-draw: true|false
+# Since the equalizer draws continuously to the LED panel, tis function (pecified in `app_funcs`), is invoked to pause the equalizer when its duration peroiod expires
+- dispose-fn: equalizer_dispose
+
+Configure the following arguments in the config file (`app->args`)
+- # Use the internal python 9-band filter or use an extenal filter. [EasyEffects](https://github.com/wwmm/easyeffects) is teh recommended external filter to use. You can tune the equalizer dynamically as it runs, using the EasyEffects GUI.
+- external-filter: false|true
+- # Identify device location by device or quandrant. Used for identifying the app instance if a dispose function is called
+- side: left|right|<quadrant>
+
+The equalizer relies on PulseAudio and Pipewire packages to receive and process the audio output of your computer. The following packages must be installed:
+- Debian/Ubuntu: `sudo apt install pipewire pipewire-pulse wireplumber pulseaudio-utils`
+- Fedora: `sudo dnf install pipewire pipewire-pulseaudio wireplumber`
+
+You must add your user to the audio group
+- `sudo usermod -Ag audio $USER`
+- Then logout and login or reboor. Verify with `sudo groups`
+
+The Equalizer requires the Framework-provided Input Module Control binary to be insatlled somewhee on your executable path. If it's on the path, the app will find it. Otherwise, the equalizer will not run, and an error will be logged.
+- [Project Info](https://github.com/FrameworkComputer/inputmodule-rs/tree/main) (with instructions to build from source)
+- [Binary Downloads](https://github.com/FrameworkComputer/inputmodule-rs/releases)
+
 ## Notes
 * See https://github.com/FrameworkComputer/inputmodule-rs for info about the LED matrix device. Be sure to run the code that installs the udev rules for accessing the devices.
 * To list your input devices, use the following python code after installing [Python-evdev](https://python-evdev.readthedocs.io/en/latest/index.html)

@@ -9,11 +9,12 @@ import sys
 import os
 from collections import defaultdict
 import logging
-import traceback
 
 # Internal Dependencies
 from led_mon.drawing import draw_outline_border, draw_ids, draw_id, draw_app, draw_app_border, DrawingThread
 from led_mon.monitors import CPUMonitor, MemoryMonitor, BatteryMonitor, DiskMonitor, NetworkMonitor, get_monitor_brightness
+from led_mon import shared_state
+from led_mon.shared_state import discover_led_devices
 
 # External Dependencies
 import numpy as np
@@ -90,20 +91,6 @@ def get_config():
             log.debug(f"Using default config file {config_file}")
     with open(config_file, 'r') as f:
         return safe_load(f)
-
-def discover_led_devices():
-    locations = []
-    try:
-        device_list = list_ports.comports()
-        for device in device_list:
-            if 'LED Matrix Input Module' in str(device):
-                locations.append((device.location, device.device))
-        #location is of form: <bus>-<port>[-<port>]  (port is of form x.y:n.m)
-        # Example: 1-3.3:1.0 (right device) , 1-3.2:1.0 (left device)
-        # Sort by y:n.m to get the devices in left-right order
-        return sorted(locations, key = lambda x: re.sub(r'^\d+\-\d+\.', '', x[0]))
-    except Exception as e:
-        log.error(f"An Exception occured while tring to locate LED Matrix devices. {e}")
 
 def list_apps(base_apps, plugin_apps, quads):
     max_len = max(map(lambda x: len(x), base_apps + plugin_apps))
@@ -316,7 +303,8 @@ def app(args, base_apps, plugin_apps):
             screen_brightness = get_monitor_brightness()
             background_value = int(screen_brightness * (max_background_brightness - min_background_brightness) + min_background_brightness)
             foreground_value = int(screen_brightness * (max_foreground_brightness - min_foreground_brightness) + min_foreground_brightness)
-
+            shared_state.foreground_value = foreground_value
+            
             # Clamp brightness values to the valid byte range
             background_value = max(0, min(255, background_value))
             foreground_value = max(0, min(255, foreground_value))
@@ -328,19 +316,24 @@ def app(args, base_apps, plugin_apps):
             evdev_key_pressed = True if (MODIFIER_KEYS[0] in active_keys or MODIFIER_KEYS[1] in active_keys) and KEY_I in active_keys and device else False
             pynput_key_pressed = i_pressed and alt_pressed
             key_combo_active = (evdev_key_pressed or pynput_key_pressed) and not args.no_key_listener
+            shared_state.key_press_active = key_combo_active
 
             # Track when an app is changed in either panel, used to manage animation state
             idx_changed = {
                 left_drawing_queue: False,
                 right_drawing_queue: False
             }
-            for quadrant,apps in quads.items():
+            # A set of apps to be (potentialy) disposed
+            apps_to_dispose = []
+            for quadrant, apps in quads.items():
                     app = apps[app_idx[quadrant]]
                     if time.monotonic() - base_time_map[quadrant][app['name']] >= int(app_duration[app['name']]):
                         if 'left' in quadrant:
                             idx_changed[left_drawing_queue] = True
                         else:
                             idx_changed[right_drawing_queue] = True
+                        if 'dispose-fn' in app:
+                                apps_to_dispose.append(app)
                         app_idx[quadrant] = (app_idx[quadrant] + 1) % len(quads[quadrant])
                         app = apps[app_idx[quadrant]]
                         base_time_map[quadrant][app['name']] = time.monotonic()
@@ -391,9 +384,13 @@ def app(args, base_apps, plugin_apps):
                 else:
                     panel = 'right'
                     _args = right_args
+                # For persistent-draw apps, we don't submit the grid to the drawing queue
+                persistent_draw = False
                 for j, arg in enumerate(_args):
                     arg_name = arg['name']
                     if arg.get("display", True) == False: continue
+                    if arg.get('persistent-draw', False):
+                        persistent_draw = True
                     if j == 0:
                         idx = 0
                         loc = 'top'
@@ -413,7 +410,6 @@ def app(args, base_apps, plugin_apps):
                         log.error(f"Unrecognized app {arg_name} for {loc} {panel}")
                     except Exception as e:
                         log.error(f"Error {e} with app {arg_name} for {loc} {panel}")
-                        traceback.print_exc()
                     # Single border draw for mem and bat together
                     if arg_name == 'mem-bat': arg_name = 'mem'
                     if kwargs.get('border', True):
@@ -422,13 +418,23 @@ def app(args, base_apps, plugin_apps):
                 if idx_changed[draw_queue]:
                     do_animate = animate
                     idx_changed[draw_queue] = False
+                        
                 # Restart animation if it was stopped for ID display
                 if latch_key_combo:
                     if (animating_left and panel == 'left') or (animating_right and panel == 'right'):
                         do_animate = True
-                if animate is None:
+                if not persistent_draw:
                     draw_queue.put((grid, do_animate))
             latch_key_combo = False
+            for app in apps_to_dispose:
+                dispose_fn = app.get('dispose-fn', None)
+                if dispose_fn:
+                    func = app_functions[dispose_fn]
+                    kwargs = {}
+                    if 'args' in app:
+                        kwargs = {k: tuple(v) if isinstance(v, list) else v for k, v in app['args'].items()}
+                    func(**kwargs)
+            del apps_to_dispose
             time.sleep(0.1)     
         except KeyboardInterrupt:
             raise
