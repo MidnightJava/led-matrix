@@ -16,4 +16,4 @@ def discover_led_devices():
         # Sort by y:n.m to get the devices in left-right order
         return sorted(locations, key = lambda x: re.sub(r'^\d+\-\d+\.', '', x[0]))
     except Exception as e:
-        print(f"An Exception occured while tring to locate LED Matrix devices. {e}")
+        print(f"An Exception occured while trying to locate LED Matrix devices. {e}")
