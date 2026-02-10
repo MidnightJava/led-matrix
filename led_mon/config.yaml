@@ -74,7 +74,7 @@ quadrants:
   bottom-right:
   - app:
     name: noop1
-    duraiton: 30
+    duration: 30
     display: false
   - app:
     name: noop2
@@ -91,7 +91,7 @@ quadrants:
   bottom-left:
   - app:
     name: noop1
-    duraiton: 30
+    duration: 30
     display: false
   - app:
     name: noop2

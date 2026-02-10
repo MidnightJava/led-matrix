@@ -325,7 +325,7 @@ Set the following app settings. These are direct properties of the equalizer app
 - dispose-fn: equalizer_dispose
 
 Configure the following arguments in the config file (`app->args`)
-- # Use the internal python 9-band filter or use an extenal filter. [EasyEffects](https://github.com/wwmm/easyeffects) is teh recommended external filter to use. You can tune the equalizer dynamically as it runs, using the EasyEffects GUI.
+- # Use the internal python 9-band filter or use an extenal filter. [EasyEffects](https://github.com/wwmm/easyeffects) is the recommended external filter to use. You can tune the equalizer dynamically as it runs, using the EasyEffects GUI.
 - external-filter: false|true
 - # Identify device location by device or quandrant. Used for identifying the app instance if a dispose function is called
 - side: left|right|<quadrant>
