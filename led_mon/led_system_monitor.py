@@ -440,7 +440,6 @@ def app(args, base_apps, plugin_apps):
             raise
         except Exception as e:
             log.error(f"Error in main loop: {e}")
-            traceback.print_exc()
             time.sleep(1.0)
             
     # Informative message if pynput is not available
@@ -514,4 +513,5 @@ if __name__ == "__main__":
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
     main(sys.argv)
+
 
