@@ -130,6 +130,7 @@ def draw_source_change_cue(source):
                 subprocess.call(cmd_1, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 if cmd_2:
                     subprocess.call(cmd_2, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    
 def get_default_device(dev_type: DeviceType):
     with Pulse() as pulse_tmp:  # Temporary connection to query
         server_info = pulse_tmp.server_info()
@@ -143,7 +144,6 @@ class Equalizer():
     
     def __init__(self, device_location):
         self.done = False
-        self.device_location = device_location
         self.queue = queue.Queue(2)
         self.drawing_thread = DrawingThread(device_location, self.queue)
         self.drawing_thread.start()
@@ -203,7 +203,7 @@ class Equalizer():
         self.queue.put((grid, False))
 
     def run(self, channel, external_filter, device_name):
-        if not Path(MODUE_CONTROL_APP).is_file():
+        if not MODUE_CONTROL_APP or not Path(MODUE_CONTROL_APP).is_file():
             log.error("The executable file inputmodule-control was not found on the executable Path. The equalizer will not run.")
             return
         self.device_name = device_name
@@ -301,19 +301,26 @@ if __name__ == '__main__':
         help="Serial device for right channel"
     )
     args = parser.parse_args()
+    
+    devices: tuple[str, str] = discover_led_devices()
 
     if args.channel == 'left':
         channel = 0  # left = column 0 in stereo buffer
         serial_dev = args.serial_dev_left
+        location = devices[0][0] if len(devices) > 0 else None
     else:
         channel = 1  # right = column 1
         serial_dev = args.serial_dev_right
+        location = devices[1][0] if len(devices) > 1 else None
 
     use_external_filter = args.use_easyeffects
-    eq = Equalizer()
-    eq.run(channel=channel, external_filter=use_external_filter, device_name=serial_dev)
-    def stop_and_exit(sig=None, frame=None):
-        eq.cleanup()
-        sys.exit(0)
-    signal.signal(signal.SIGINT, stop_and_exit )
-    signal.signal(signal.SIGTERM, stop_and_exit)
+    if location is not None:
+        eq = Equalizer(location)
+        eq.run(channel=channel, external_filter=use_external_filter, device_name=serial_dev)
+        def stop_and_exit(sig=None, frame=None):
+            eq.cleanup()
+            sys.exit(0)
+        signal.signal(signal.SIGINT, stop_and_exit )
+        signal.signal(signal.SIGTERM, stop_and_exit)
+    else:
+        log.error(f"LED matrix device {serial_dev} not found. Please check your connections and try again.")
