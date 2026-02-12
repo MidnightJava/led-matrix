@@ -168,6 +168,8 @@ class Equalizer():
 
             expected_source = f"{current_sink}.monitor"
             current_source = get_default_device(DeviceType.SOURCE)
+            
+            last_known_sink = current_sink
 
             if current_source != expected_source and current_source is not None:
                 log.info(f"New sink detected: {current_sink}")
@@ -180,12 +182,11 @@ class Equalizer():
                 #time.sleep(0.2)  # tiny settle time, may not be needed
                 verified = get_default_device(DeviceType.SOURCE)
                 if verified == expected_source:
-                    log.info(f"Default source changed: {current_source} → {expected_source}")
-                    draw_source_change_cue(expected_source)
+                    with device_lock:
+                        log.info(f"Default source changed: {current_source} → {expected_source}")
+                        draw_source_change_cue(expected_source)
                 else:
                     log.warning(f"Failed to change default source: still {verified}")
-
-            last_known_sink = current_sink
 
         except subprocess.CalledProcessError as e:
             log.error(f"Failed to check/fix default source: {e}")
