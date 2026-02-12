@@ -1,4 +1,5 @@
 # Built In Dependencies
+from collections import namedtuple
 import os
 import requests
 from zoneinfo import ZoneInfo
@@ -11,12 +12,15 @@ OPENWEATHER_HOST = 'https://api.openweathermap.org'
 IPIFY_HOST = 'https://api.ipify.org'
 
 TEST_CONFIG = {
-    'zip_info': ('10001', 'US'),  # New York, NY
-    'lat_lon': (40.7128, -74.0060),  # New York, NY
-    'units': 'metric',
+    'zip_info': ('20191', 'US'),  # New York, NY
+    # 'lat_lon': (40.7128, -74.0060),  # New York, NY
+    'lat_lon': None,  # Set to None to use zip_info or IP-based location
+    'units': 'imperial',
     'forecast_day': 1,  # 1=tomorrow, 2=day after tomorrow, etc.
     'forecast_hour': 12,  # Hour of the day for forecast (0-23)
 }
+
+Weather = namedtuple('Weather', ['Weather', 'temp', 'feels_like', 'wind_speed', 'wind_dir', 'temp_symbol', 'condition'])
 
 def get_weather(forecast):
     zip_info = TEST_CONFIG['zip_info']
@@ -51,24 +55,25 @@ def get_weather(forecast):
             for fc in forecast['list']:
                 dt = datetime.strptime(fc['dt_txt'], '%Y-%m-%d %H:%M:%S')
                 if dt.date() == target_date and dt.hour >= forecast_hour:
-                    temp = fc['main']['temp']
-                    cond = fc['weather'][0]['main']
-                    if cond in mist_like: cond = 'mist-like'
-                    _forecast = [temp, temp_symbol, cond]
+                    temp, feels_like, wind_speed, wind_dir, temp_symbol, condition = fc['main']['temp'], fc['main']['feels_like'], fc['wind']['speed'], fc['wind']['deg'], temp_symbol, fc['weather'][0]['main']
+                    if condition in mist_like: condition= 'mist-like'
+                    forecast = Weather('Forecast', temp, feels_like, wind_speed, wind_dir, temp_symbol, condition)
                     print(f"Forecast weather for time {fc['dt_txt']}")
-                    return _forecast
-            temp = forecast['list'][-1]['main']['temp']
-            cond = forecast['list'][-1]['weather'][0]['main']
-            if cond in mist_like: cond = 'mist-like'
-            _forecast = [temp, temp_symbol, cond]
-            print(f"Forecast weather for time {fc['dt_txt']}")
-            return _forecast
+                    return forecast
+            forecast = forecast['list'][-1]
+            print(f"Forecast weather for latest time availabe: {forecast['dt_txt']}")
+            temp, feels_like, wind_speed, wind_dir, temp_symbol, condition = forecast['main']['temp'], forecast['main']['feels_like'], forecast['wind']['speed'], forecast['wind']['deg'],temp_symbol, forecast['weather'][0]['main']
+            if condition in mist_like: condition= 'mist-like'
+            forecast = Weather('Forecast', temp, feels_like, wind_speed, wind_dir, temp_symbol, condition)
+            return forecast
         else:
             current = requests.get(f"{OPENWEATHER_HOST}/data/2.5/weather?lat={loc[0]}&lon={loc[1]}&appid={weather_api_key}&units={units}").json()
+            print(current)
 
-            _current = [current['main']['temp'], temp_symbol, current['weather'][0]['main']]
-            if _current[2] in mist_like: _current[2] = 'mist-like'
-            return _current
+            temp, feels_like, wind_speed, wind_dir, temp_symbol, condition = current['main']['temp'], current['main']['feels_like'], current['wind']['speed'], current['wind']['deg'], temp_symbol, current['weather'][0]['main']
+            if condition in mist_like: condition= 'mist-like'
+            weather = Weather('Current', temp, feels_like, wind_speed, wind_dir, temp_symbol, condition)
+            return weather
     except Exception as e:
         print(f"Error getting weather: {e}")
         return None
@@ -113,6 +118,7 @@ if __name__ == "__main__":
     load_dotenv()
     current_time = get_time()
     print(f"Time: {current_time[0]} {'PM' if current_time[1] else 'AM/24-hour'}")
-    fc = get_weather(forecast=True)
+    forecast = get_weather(forecast=True)
     current = get_weather(forecast=False)
-    print(f"Weather: Current: {current}, Forecast: {fc}")
+    print(f"Current: {current}")
+    print(f"Forecast: {forecast}")

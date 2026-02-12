@@ -113,7 +113,7 @@ def draw_snapshot(grid, fill_value, **kwargs):
             print(f"File {file} not found")
             warned.add(file)
 
-def draw_chars(grid: np.ndarray, chars: list[str], fill_value: int, y: int):
+def draw_chars_list(grid: np.ndarray, chars: list[str], fill_value: int, y: int):
     char_map = {**numerals, **symbols, **icons}
     grid = grid.T
     for char in chars:

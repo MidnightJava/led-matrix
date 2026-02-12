@@ -1,17 +1,21 @@
 # Built In Dependencies
-from statistics import mean
+from collections import namedtuple
 import requests
 import os
+import time
 from zoneinfo import ZoneInfo
 from datetime import datetime, timedelta
 import numpy as np
 from functools import cache
 from threading import Timer
 import logging
+from enum import Enum
 
 # Internal dependencies
 from led_mon.patterns import icons, letters_5_x_6
 from led_mon import drawing
+
+Weather = namedtuple('Weather', ['Weather', 'temp', 'wind_chill', 'wind_speed', 'wind_speed_symbol', 'wind_dir', 'temp_symbol', 'condition'])
 
 OPENWEATHER_HOST = 'https://api.openweathermap.org'
 IPIFY_HOST = 'https://api.ipify.org'
@@ -26,6 +30,13 @@ LOG_LEVELS = {
 
 log_level = LOG_LEVELS[os.environ.get("LOG_LEVEL", "warning").lower()]
 log.setLevel(log_level)
+
+class Measures(Enum):
+    TEMP_COND = 'temp_condition'
+    WIND_CHILL = 'wind_chill'
+    WIND = 'wind'
+    
+
 
 
 ### Helper functions ###
@@ -116,25 +127,30 @@ class WeatherMonitor:
                 for fc in forecast['list']:
                     dt = datetime.strptime(fc['dt_txt'], '%Y-%m-%d %H:%M:%S')
                     if dt.date() == target_date and dt.hour >= forecast_hour:
-                        temp = fc['main']['temp']
-                        cond = fc['weather'][0]['main']
-                        if cond in mist_like: cond = 'mist-like'
-                        log.debug(f"Forecast weather: {fc['dt_txt']} {temp} degC, {cond}")
-                        _forecast = [temp, temp_symbol, cond]
-                        return _forecast
-                temp = forecast['list'][-1]['main']['temp']
-                cond = forecast['list'][-1]['weather'][0]['main']
-                if cond in mist_like: cond = 'mist-like'
-                _forecast = [temp, temp_symbol, cond]
-                log.debug(f"Forecast weather: {fc['dt_txt']} {temp } {temp_symbol}, {cond}")
-                return _forecast
+                        temp, feels_like, wind_speed, wind_speed_symbol, wind_dir, temp_symbol, condition = fc['main']['temp'], fc['main']['feels_like'], fc['wind']['speed'], 'mi' if units == 'imperial' else 'km', fc['wind']['speed_symbol'] if 'speed_symbol' in fc['wind'] else 'm/s', fc['wind']['deg'],  temp_symbol, fc['weather'][0]['main']
+                        if condition in mist_like: condition= 'mist-like'
+                        # Convert m/sec to km/hr (* 3,600 / 1,000)
+                        if units != 'imperial': wind_speed *= 3.6
+                        forecast = Weather('Forecast', temp, feels_like, wind_speed, wind_speed_symbol, wind_dir, temp_symbol, condition)
+                        # print(f"Forecast weather for time {fc['dt_txt']}")
+                        return forecast
+                forecast = forecast['list'][-1]
+                # print(f"Forecast weather for latest time availabe: {forecast['dt_txt']}")
+                temp, feels_like, wind_speed, wind_speed_symbol, wind_dir, temp_symbol, condition = forecast['main']['temp'], forecast['main']['feels_like'], forecast['wind']['speed'], 'mi' if units == 'imperial' else 'km', forecast['wind']['deg'], temp_symbol, forecast['weather'][0]['main']
+                # Convert m/sec to km/hr (* 3,600 / 1,000)
+                if units != 'imperial': wind_speed *= 3.6
+                if condition in mist_like: condition= 'mist-like'
+                forecast = Weather('Forecast', temp, feels_like, wind_speed, wind_speed_symbol, wind_dir, temp_symbol, condition)
+                return forecast
             else:
                 current = requests.get(f"{OPENWEATHER_HOST}/data/2.5/weather?lat={loc[0]}&lon={loc[1]}&appid={weather_api_key}&units={units}").json()
 
-                _current = [current['main']['temp'], temp_symbol, current['weather'][0]['main']]
-                if _current[2] in mist_like: _current[2] = 'mist-like'
-                log.debug(f"Current weather: {_current}")
-                return _current
+                temp, feels_like, wind_speed, wind_speed_symbol, wind_dir, temp_symbol, condition = current['main']['temp'], current['main']['feels_like'], current['wind']['speed'], 'mi' if units == 'imperial' else 'km', current['wind']['deg'], temp_symbol, current['weather'][0]['main']
+                # Convert m/sec to km/hr (* 3,600 / 1,000)
+                if units != 'imperial': wind_speed *= 3.6
+                if condition in mist_like: condition= 'mist-like'
+                weather = Weather('Current', temp, feels_like, wind_speed, wind_speed_symbol, wind_dir, temp_symbol, condition)
+                return weather
         except Exception as e:
             log.error(f"Error getting weather: {e}")
             return None
@@ -147,18 +163,45 @@ weather_monitor = WeatherMonitor()
 
 draw_app = getattr(drawing, 'draw_app')
 
+def get_next_measure(measures, duration):
+    base_time = time.monotonic()
+    measure_idx = 0
+    while True:
+        if time.monotonic() - base_time > duration:
+            measure_idx = (measure_idx + 1) % len(measures)
+            base_time = time.monotonic()
+        yield measures[measure_idx]
+        
+def get_weather_values(weather: Weather, measure):
+    if measure == Measures.TEMP_COND.value:
+        return  list(str(round(weather.temp))) + [weather.temp_symbol] + [weather.condition.lower()]
+    elif measure == Measures.WIND_CHILL.value:
+        return list(str(round(weather.wind_chill))) + [weather.temp_symbol] + ["wc"]
+    elif measure == Measures.WIND.value:
+        # Convert wind direction in degrees to compass direction
+        dirs = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
+        ix = round(weather.wind_dir / (360. / len(dirs)))
+        wind_dir = dirs[ix % len(dirs)]
+        return list(str(round(weather.wind_speed))) + [weather.wind_speed_symbol] + [f"wind-{wind_dir}"]
+    else:
+        return "?", "?"
+    
+@cache
+def get_generator(**kwargs):
+    return get_next_measure( kwargs.get('measures', [Measures.TEMP_COND.value]), kwargs.get('measures-duration', 10))
         
 def draw_weather(arg, grid, foreground_value, idx, **kwargs):
     # Make kwargs hashable for caching
     fs_dict = frozenset(kwargs.items())
     weather = weather_monitor.get(fs_dict)
-    if weather and weather[0] and weather[1]:
-        temp_val = weather[0]
-        temp = str(round(temp_val))
-        weather_values = list(temp) + [weather[1]] + [weather[2].lower()]
+    if weather:
+        gen = get_generator(**kwargs)
+        weather_values = get_weather_values(weather, next(gen))
         draw_app(arg, grid, weather_values, foreground_value, idx)
+        # log.debug(f"Weather: {weather_values}")
     else:
         draw_app(arg, grid, ["?", "?"], foreground_value, idx)
+        log.debug(f"Weather: No data available")
 
     
 def draw_time(arg, grid, foreground_value, idx, **kwargs):
@@ -183,7 +226,7 @@ def repeat_function(interval, func, *args, **kwargs):
 # free tierlimit of 60 calls/minute and 1,000,000 calls/month
 repeat_function(30, weather_monitor.get.cache_clear)
 
-draw_chars = getattr(drawing, 'draw_chars')
+draw_chars = getattr(drawing, 'draw_chars_list')
 
 #### Implement low-level drawing functions ####
 # These functions will be dynamically imported by drawing.py and called by their corresponding app function
