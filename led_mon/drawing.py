@@ -293,7 +293,10 @@ class DrawingThread(threading.Thread):
     def run(self):
         while True:
             try:
-                grid, animate = self.input_queue.get()
+                item = self.input_queue.get()
+                if item is None:  # Sentinel to exit cleanly
+                    break
+                grid, animate = item
                 if not self.animate_active:
                     draw_to_LEDs(self.serial_port, grid)
                 if animate is not None:
@@ -301,10 +304,18 @@ class DrawingThread(threading.Thread):
                     do_animate(self.serial_port, animate)
 
             except Exception as e:
-                print(f"Error in DrawingThread: {e}")
-                del self.serial_port
+                log.error(f"Error in DrawingThread: {e}")
+                # del self.serial_port
                 time.sleep(1.0)
-                self.serial_port = init_device(self.port_location)
+                # self.serial_port = init_device(self.port_location)
+                continue
+            
+        # Clean shutdown
+        try:
+            self.serial_port.close()
+        except Exception as e:
+            log.error(f"Error closing serial port: {e}")
+        log.debug("DrawingThread exited cleanly")
                 
 ###############################################################
 ###           Load metrics functions from plugins           ###

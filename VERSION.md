@@ -18,6 +18,16 @@ led-matrix-monitoring = {
 
 ## Changelog
 
+### v2.1.0 (2026-02-10)
+- **Systemd Service Refactoring**
+  - The app now runs as a user service instead of a system service
+  - systemctl --user start|stop|status fwledmonitor #NB: no sudo
+  - Service config is now at ~/.config/systemd/user/fwledmonitor.service
+  - Old service config at /etc/systemd/system/fwledmonitor.service is deleted by the installation script
+- **Equalizer Plugin**
+  - Displays equalizer visualization of default audio source
+  - Package dependencies were updated
+  - Python dependencies were updated
 ### v2.0.0 (2026-01-31)
 - **Major Refactoring**:
   - Modularized codebase with `led_mon/` package structure

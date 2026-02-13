@@ -1,4 +1,4 @@
-
+#!/bin/bash
 for dev in $(ls /sys/bus/usb/devices/ | grep 'ttyACM'); do
     echo 0 | sudo tee /sys/bus/usb/devices/$dev/authorized
 done
