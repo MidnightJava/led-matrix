@@ -357,6 +357,12 @@ The Equalizer requires the Framework-provided Input Module Control binary to be 
 - [Project Info](https://github.com/FrameworkComputer/inputmodule-rs/tree/main) (with instructions to build from source)
 - [Binary Downloads](https://github.com/FrameworkComputer/inputmodule-rs/releases)
 
+If there are problems with the audio stream, try restarting the audio streaming services
+
+`systemctl --user restart wireplumber pipewire pipewire-pulse`
+
+If you use the EasyEffects external filter, add an input effects preset with 9 bands whose center frequencies are equal to the `BAND_CENTERS` list in `visualize.py`. Set q between 1 and 2 initially, and adjust it if you want narrower or wider bands. Set all the gains to 0, then adjust them with the sliders in the GUI whle audio is playing. Save the preset and set it to auto-load on startup.
+
 ## Notes
 * See https://github.com/FrameworkComputer/inputmodule-rs for info about the LED matrix device. Be sure to run the code that installs the udev rules for accessing the devices.
 * To list your input devices, use the following python code after installing [Python-evdev](https://python-evdev.readthedocs.io/en/latest/index.html)
