@@ -73,22 +73,26 @@ def find_keyboard_device():
         log.warning(f"Warning: Could not auto-detect keyboard device: {e}")
     return None
 
-def get_config():
-    # Check for CONFIG_FILE environment variable first (used by NixOS module)
-    config_file = os.environ.get('CONFIG_FILE', None)
+def get_config(args):
+    # Check for --config-file program arg first, and then CONFIG_FILE environment variable (used by NixOS module)
+    config_file = args.config_file
     if config_file:
-        log.debug(f"Using config file from CONFIG_FILE env var: {config_file}")
+        log.debug(f"Using config file from program arg --config-file: {config_file}")
     else:
-        # Fall back to config-local.yaml or config.yaml in current directory
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_name = 'config-local.yaml'
-        config_file = os.path.join(current_dir, config_file_name)
-        if os.path.exists(config_file):
-            log.debug(f"Using local config file {config_file}")
+        config_file = os.environ.get('CONFIG_FILE', None)
+        if config_file:
+            log.debug(f"Using config file from CONFIG_FILE env var: {config_file}")
         else:
-            config_file_name = 'config.yaml'
+            # Fall back to config-local.yaml or config.yaml in current directory
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            config_file_name = 'config-local.yaml'
             config_file = os.path.join(current_dir, config_file_name)
-            log.debug(f"Using default config file {config_file}")
+            if os.path.exists(config_file):
+                log.debug(f"Using local config file {config_file}")
+            else:
+                config_file_name = 'config.yaml'
+                config_file = os.path.join(current_dir, config_file_name)
+                log.debug(f"Using default config file {config_file}")
     with open(config_file, 'r') as f:
         return safe_load(f)
 
@@ -136,7 +140,7 @@ def app(args, base_apps, plugin_apps):
     ################################################################################
     ### Parse config file to enable control of apps by quadrant and by time slice ##
     ################################################################################
-    config = get_config()
+    config = get_config(args)
     duration = config['duration'] #Default config to be applied if not set in an app
     quads = config['quadrants']
     top_left,  bottom_left, top_right, bottom_right, = \
@@ -494,6 +498,7 @@ def main(args):
     mode_group.add_argument("--no-key-listener", "-nkl", action="store_true", help="Do not listen for key presses")
     mode_group.add_argument("--disable-plugins", "-dp", action="store_true", help="Do not load any plugin code")
     mode_group.add_argument("--list-apps", "-la", action="store_true", help="List the installed apps, and exit")
+    mode_group.add_argument("--config-file", "-cf", default=None, help="Absolute path to custom config file")
     
     args = parser.parse_args()
     if args.no_key_listener: print("Key listener disabled")

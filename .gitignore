@@ -4,6 +4,6 @@ matrix_patterns
 build
 dist
 .env
-config-local.yaml
+config-local*.yaml
 __pycache__/
 .vscode/

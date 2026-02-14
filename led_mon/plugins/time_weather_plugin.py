@@ -120,14 +120,11 @@ class WeatherMonitor:
 
             if forecast:
                 forecast = requests.get(f"{OPENWEATHER_HOST}/data/2.5/forecast?lat={loc[0]}&lon={loc[1]}&appid={weather_api_key}&units={units}").json()
-                fc = forecast['list'][0]
-                temp = fc['main']['temp']
-                cond = fc['weather'][0]['main']
                 target_date = (datetime.now(ZoneInfo('GMT')).date() + timedelta(days=forecast_day))
                 for fc in forecast['list']:
                     dt = datetime.strptime(fc['dt_txt'], '%Y-%m-%d %H:%M:%S')
                     if dt.date() == target_date and dt.hour >= forecast_hour:
-                        temp, feels_like, wind_speed, wind_speed_symbol, wind_dir, temp_symbol, condition = fc['main']['temp'], fc['main']['feels_like'], fc['wind']['speed'], 'mi' if units == 'imperial' else 'km', fc['wind']['speed_symbol'] if 'speed_symbol' in fc['wind'] else 'm/s', fc['wind']['deg'],  temp_symbol, fc['weather'][0]['main']
+                        temp, feels_like, wind_speed, wind_speed_symbol, wind_dir, temp_symbol, condition = fc['main']['temp'], fc['main']['feels_like'], fc['wind']['speed'], 'mi' if units == 'imperial' else 'km', fc['wind']['deg'], temp_symbol, fc['weather'][0]['main']
                         if condition in mist_like: condition= 'mist-like'
                         # Convert m/sec to km/hr (* 3,600 / 1,000)
                         if units != 'imperial': wind_speed *= 3.6
@@ -163,7 +160,10 @@ weather_monitor = WeatherMonitor()
 
 draw_app = getattr(drawing, 'draw_app')
 
+VALID_MEASURES = ['temp_condition', 'wind_chill', 'wind']
+
 def get_next_measure(measures, duration):
+    measures = list(filter(lambda m: m in VALID_MEASURES, measures))
     base_time = time.monotonic()
     measure_idx = 0
     while True:
@@ -176,15 +176,32 @@ def get_weather_values(weather: Weather, measure):
     if measure == Measures.TEMP_COND.value:
         return  list(str(round(weather.temp))) + [weather.temp_symbol] + [weather.condition.lower()]
     elif measure == Measures.WIND_CHILL.value:
-        return list(str(round(weather.wind_chill))) + [weather.temp_symbol] + ["wc"]
+        return ['wc', ' '] + list(str(round(weather.wind_chill))) + [weather.temp_symbol]
     elif measure == Measures.WIND.value:
         # Convert wind direction in degrees to compass direction
         dirs = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
         ix = round(weather.wind_dir / (360. / len(dirs)))
         wind_dir = dirs[ix % len(dirs)]
-        return list(str(round(weather.wind_speed))) + [weather.wind_speed_symbol] + [f"wind-{wind_dir}"]
+        return ['wd', ' '] + list(str(round(weather.wind_speed))) + [weather.wind_speed_symbol] + [f"wind-{wind_dir}"]
     else:
         return "?", "?"
+    
+def draw_fc_period_indicator(grid, foreground_value, day, hour):
+    """Draw vertical bars at the bottom left and right mafrix edges, to indicate
+        the Forecast Day (left edge) and Forecast Hours (right edge) settings"""
+    day = max(1, min(day, 5))
+    hours = [0, 3, 6, 9, 12, 15, 18, 21]
+    hours_idx = 8
+    for idx, _hour in enumerate(hours):
+        if hour >= _hour: hours_idx = idx
+    # We count from the bottom pixel with a 1-based index
+    hours_idx += 1
+    day_y_vals = range(33 -day +1, 34)
+    hour_y_vals = range(33 -hours_idx + 1, 34)
+    grid[0, day_y_vals[0]: day_y_vals[-1]+1] = foreground_value
+    grid[8, hour_y_vals[0]: hour_y_vals[-1]+1] = foreground_value
+    # Draw a hash mark next to the fourht pixel from bottom if needed, for ease of reading
+    grid[7, 30] = grid[8, 30]
     
 @cache
 def get_generator(**kwargs):
@@ -199,6 +216,8 @@ def draw_weather(arg, grid, foreground_value, idx, **kwargs):
         weather_values = get_weather_values(weather, next(gen))
         draw_app(arg, grid, weather_values, foreground_value, idx)
         # log.debug(f"Weather: {weather_values}")
+        if kwargs.get("forecast", None):
+            draw_fc_period_indicator(grid, foreground_value, kwargs.get("forecast_day", 1), kwargs.get("forecast_hour", 12))
     else:
         draw_app(arg, grid, ["?", "?"], foreground_value, idx)
         log.debug(f"Weather: No data available")
@@ -214,7 +233,6 @@ def draw_time(arg, grid, foreground_value, idx, **kwargs):
 
 
 def repeat_function(interval, func, *args, **kwargs):
-
     def wrapper():
         func(*args, **kwargs)
         Timer(interval, wrapper).start()
