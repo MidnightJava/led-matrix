@@ -1,6 +1,6 @@
 # See config-README.md for help on using this config file.
-# To customize the settings, copy them to config-local.yaml. That file if present,
-# will be used in place of this one
+# To customize the settings, copy them to config-local.yaml.
+# That file, if present, will be used in place of this one.
 
 duration: 10
 
@@ -12,6 +12,7 @@ quadrants:
     scope: panel
     args:
       fmt_24_hour: false
+      # use tz identifer as listed in the IANA database. See https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
       timezone:
   - app:
     name: equalizer
@@ -21,6 +22,7 @@ quadrants:
     persistent-draw: true
     args:
       external-filter: false
+      # left|right|<name of quadrant>
       side: left
       border: false  
   - app:
@@ -42,12 +44,17 @@ quadrants:
     duration: 60
     scope: panel
     args:
+      # imperial|metric|standard  (default metric)
       units: imperial
+      # Include one or more of [temp_condition, wind_chill, wind]
       measures: [temp_condition, wind_chill, wind]
       measures-duration: 60
       forecast: false
+      # 1-5
       forecast_day: 1
+      # 0|3|6|9|12|15|18|21 (default 12)
       forecast_hour: 12
+      # [arg-name, id-if-arg-true, id-if-arg-false]
       id_key_override: [forecast, weather_forecast, weather_current]
   - app:
     name: equalizer

@@ -83,10 +83,9 @@ def get_weather(forecast):
 def get_time():
     """
     Return the current time as a tuple (HHMM, is_pm). is_pm is False if 24-hour format is used.
-    Represent in local time or GMT, and in 24-hour or 12-hour format, based on configuration.
+    Represent in local time or specified timezone, and in 24-hour or 12-hour format, based on configuration.
     """
     from datetime import datetime
-    # TODOD get from config file
     format_24_hour =  False
     use_gmt = False
     now = datetime.now(ZoneInfo("GMT")) if use_gmt else datetime.now().astimezone()

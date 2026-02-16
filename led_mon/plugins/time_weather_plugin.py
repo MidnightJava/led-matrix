@@ -74,7 +74,7 @@ class TimeMonitor:
     def get(**kwargs):
         """
         Return the current time as a tuple (HHMM, is_pm). is_pm is False if 24-hour format is used.
-        Represent in local time or GMT, and in 24-hour or 12-hour format, based on configuration.
+        Represent in local time or specified timezone, and in 24-hour or 12-hour format, based on configuration.
         """
         timezone = kwargs.get('timezone', None)
         format_24_hour = 'fmt_24_hour' in kwargs and kwargs['fmt_24_hour']
