@@ -125,7 +125,7 @@ def draw_source_change_cue(source):
     else:
         cmd_2 = None
     with device_lock:
-        if not shared_state.key_press_active:
+        if not shared_state.id_key_press_active:
             for _ in range(3):
                 subprocess.call(cmd_1, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 if cmd_2:
@@ -247,7 +247,7 @@ class Equalizer():
                 ] + [str(l) for l in levels]
                 # print(f"{device_name} {levels}")
                 with device_lock:
-                    if not shared_state.key_press_active:
+                    if not shared_state.id_key_press_active:
                         if sum(levels) == 0 and time.time() - base_time > ZERO_FRAME_NOTIFY_DELAY_SEC:
                             self.draw_id(device_name)
                         elif sum(levels) > 0:

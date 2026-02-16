@@ -1,4 +1,4 @@
-key_press_active = False
+id_key_press_active = False
 foreground_value = 0
 
 from serial.tools import list_ports
