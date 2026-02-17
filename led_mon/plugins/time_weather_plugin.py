@@ -182,7 +182,7 @@ def get_weather_values(weather: Weather, measure):
         dirs = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
         ix = round(weather.wind_dir / (360. / len(dirs)))
         wind_dir = dirs[ix % len(dirs)]
-        return ['wd', ' '] + list(str(round(weather.wind_speed))) + [weather.wind_speed_symbol] + [f"wind-{wind_dir}"]
+        return ['wd'] + list(str(round(weather.wind_speed))) + [weather.wind_speed_symbol] + [f"wind-{wind_dir}"]
     else:
         return "?", "?"
     

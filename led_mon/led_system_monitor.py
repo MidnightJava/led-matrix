@@ -1,4 +1,5 @@
 # Built In Dependencies
+from threading import Thread
 import time
 import queue
 import sys
@@ -19,6 +20,7 @@ from led_mon.shared_state import discover_led_devices
 # External Dependencies
 import numpy as np
 import evdev
+from evdev import ecodes
 from yaml import safe_load
 
 # Optional cross-platform keyboard input; on some Linux Wayland setups this may be unavailable
@@ -52,15 +54,16 @@ if not is_frozen():
     from dotenv import load_dotenv
     load_dotenv()
 
+MODIFIER_KEYS = [('KEY_RIGHTALT', 100), ('KEY_LEFTALT', 56)]
 # Key press to show widget IDs
 KEY_I = ('KEY_I', 23)
 # Keypress to force advance to next widget without waiting for time slice to expire
 KEY_N = ('KEY_N', 49)
-MODIFIER_KEYS = [('KEY_RIGHTALT', 100), ('KEY_LEFTALT', 56)]
 global next_key_fired
 # Used to ensure that advance to next widget from Alt-N keypress occurs only once until key is released and perssed again
 next_key_fired = False
-
+global freeze_app_switching
+freeze_app_switching = False
 
 def find_keyboard_device():
     """Auto-detect keyboard input device from /dev/input/event*"""
@@ -79,6 +82,31 @@ def find_keyboard_device():
     except Exception as e:
         log.warning(f"Warning: Could not auto-detect keyboard device: {e}")
     return None
+
+def evcode_keyloop():
+    global freeze_app_switching
+    kbd_path = find_keyboard_device()
+    keys_pressed = set()
+    if kbd_path:
+        try:
+            device = evdev.InputDevice(kbd_path)
+            for event in device.read_loop():
+                for event in device.read_loop():
+                    if event.type == ecodes.EV_KEY:
+                        if event.value == 1:
+                            keys_pressed.add(event.code)
+                        elif event.value == 0:
+                            keys_pressed.discard(event.code)
+
+                        if (ecodes.KEY_LEFTALT in keys_pressed or ecodes.KEY_RIGHTALT in keys_pressed) and ecodes.KEY_F in keys_pressed:
+                            freeze_app_switching = True
+                        elif (ecodes.KEY_LEFTALT in keys_pressed or ecodes.KEY_RIGHTALT in keys_pressed) and ecodes.KEY_U in keys_pressed:
+                            freeze_app_switching = False
+        except (PermissionError, FileNotFoundError, OSError) as e:
+            log.warning(f"Warning: Cannot access keyboard device {kbd_path}: {e}")
+                
+Thread(target=evcode_keyloop, daemon=True).start()
+
 
 def get_config(args):
     # Check for --config-file program arg first, and then CONFIG_FILE environment variable (used by NixOS module)
@@ -256,8 +284,11 @@ def app(args, base_apps, plugin_apps):
                 i_pressed = True
             elif getattr(key, 'char', None) == 'n':
                 n_pressed = True
+            elif getattr(key, 'char', None) == 'f':
+                freeze_app_switching = True
+            elif getattr(key, 'char', None) == 'u':
+                freeze_app_switching = False
             elif Key is not None and key == Key.alt:
-            
                 alt_pressed = True
         except Exception:
             # Be defensive; ignore unexpected pynput key objects
@@ -318,7 +349,7 @@ def app(args, base_apps, plugin_apps):
     global latch_key_combo
     latch_key_combo = False
     def render_iteration(args):
-        global latch_key_combo, next_key_fired
+        global latch_key_combo, next_key_fired, freeze_app_switching
         try:
             screen_brightness = get_monitor_brightness()
             background_value = int(screen_brightness * (max_background_brightness - min_background_brightness) + min_background_brightness)
@@ -352,8 +383,8 @@ def app(args, base_apps, plugin_apps):
             _next_key_fired = False
             for quadrant, apps in quads.items():
                     app = apps[app_idx[quadrant]]
-                    if time.monotonic() - base_time_map[quadrant][app['name']] >= int(app_duration[app['name']]) \
-                        or (next_key_combo_active and not next_key_fired):
+                    if ((time.monotonic() - base_time_map[quadrant][app['name']] >= int(app_duration[app['name']]) \
+                        or (next_key_combo_active and not next_key_fired))) and not freeze_app_switching:
                             _next_key_fired = True
                             if 'left' in quadrant:
                                 idx_changed[left_drawing_queue] = True
@@ -524,7 +555,6 @@ def main(args):
     mode_group.add_argument("--config-file", "-cf", default=None, help="Absolute path to custom config file")
     
     args = parser.parse_args()
-    if args.no_key_listener: print("Key listener disabled")
     app(args, base_apps, plugin_apps)
 
 if __name__ == "__main__":
