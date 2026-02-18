@@ -59,9 +59,7 @@ MODIFIER_KEYS = [('KEY_RIGHTALT', 100), ('KEY_LEFTALT', 56)]
 KEY_I = ('KEY_I', 23)
 # Keypress to force advance to next widget without waiting for time slice to expire
 KEY_N = ('KEY_N', 49)
-global next_key_fired
 # Used to ensure that advance to next widget from Alt-N keypress occurs only once until key is released and perssed again
-next_key_fired = False
 global freeze_app_switching
 freeze_app_switching = False
 
@@ -84,7 +82,7 @@ def find_keyboard_device():
     return None
 
 def evcode_keyloop():
-    global freeze_app_switching
+    global freeze_app_switching, evdev_next_key_pressed
     kbd_path = find_keyboard_device()
     keys_pressed = set()
     if kbd_path:
@@ -102,6 +100,9 @@ def evcode_keyloop():
                             freeze_app_switching = True
                         elif (ecodes.KEY_LEFTALT in keys_pressed or ecodes.KEY_RIGHTALT in keys_pressed) and ecodes.KEY_U in keys_pressed:
                             freeze_app_switching = False
+                            
+                        if (ecodes.KEY_LEFTALT in keys_pressed or ecodes.KEY_RIGHTALT in keys_pressed) and ecodes.KEY_N in keys_pressed:
+                            evdev_next_key_pressed = True
         except (PermissionError, FileNotFoundError, OSError) as e:
             log.warning(f"Warning: Cannot access keyboard device {kbd_path}: {e}")
                 
@@ -214,6 +215,8 @@ def app(args, base_apps, plugin_apps):
     i_pressed = False
     global n_pressed
     n_pressed = False
+    global evdev_next_key_pressed
+    evdev_next_key_pressed = False
     
     # Set up monitors and brightness parameters
     min_background_brightness = 12
@@ -275,7 +278,7 @@ def app(args, base_apps, plugin_apps):
     }
     
     def on_press(key):
-        global alt_pressed, i_pressed, n_pressed
+        global alt_pressed, i_pressed, n_pressed, freeze_app_switching
         # If pynput is unavailable, this callback will not be used; guard anyway
         if not PYNPUT_AVAILABLE:
             return
@@ -295,7 +298,7 @@ def app(args, base_apps, plugin_apps):
             pass
 
     def on_release(key):
-        global alt_pressed, i_pressed, next_key_fired
+        global alt_pressed, i_pressed, n_pressed
         if not PYNPUT_AVAILABLE:
             return
         try:
@@ -304,7 +307,6 @@ def app(args, base_apps, plugin_apps):
                 i_pressed = False
             elif getattr(key, 'char', None) == 'n':
                 n_pressed = False
-                next_key_fired = False
             elif Key is not None and key == Key.alt:
                 alt_pressed = False
             if Key is not None and key == Key.esc:
@@ -349,7 +351,7 @@ def app(args, base_apps, plugin_apps):
     global latch_key_combo
     latch_key_combo = False
     def render_iteration(args):
-        global latch_key_combo, next_key_fired, freeze_app_switching
+        global latch_key_combo, next_key_fired, freeze_app_switching, evdev_next_key_pressed
         try:
             screen_brightness = get_monitor_brightness()
             background_value = int(screen_brightness * (max_background_brightness - min_background_brightness) + min_background_brightness)
@@ -365,8 +367,6 @@ def app(args, base_apps, plugin_apps):
             # Check for key combo using both evdev (if available) and pynput
             active_keys = device.active_keys(verbose=True) if device else []
             evdev_id_key_pressed = True if (MODIFIER_KEYS[0] in active_keys or MODIFIER_KEYS[1] in active_keys) and KEY_I in active_keys and device else False
-            evdev_next_key_pressed = True if (MODIFIER_KEYS[0] in active_keys or MODIFIER_KEYS[1] in active_keys) and KEY_N in active_keys and device else False
-            if not evdev_next_key_pressed: next_key_fired = False
             pynput_id_key_pressed = i_pressed and alt_pressed
             pynput_next_key_pressed = n_pressed and alt_pressed
             id_key_combo_active = (evdev_id_key_pressed or pynput_id_key_pressed) and not args.no_key_listener
@@ -380,12 +380,11 @@ def app(args, base_apps, plugin_apps):
             }
             # A set of apps to be (potentialy) disposed
             apps_to_dispose = []
-            _next_key_fired = False
             for quadrant, apps in quads.items():
                     app = apps[app_idx[quadrant]]
                     if ((time.monotonic() - base_time_map[quadrant][app['name']] >= int(app_duration[app['name']]) \
-                        or (next_key_combo_active and not next_key_fired))) and not freeze_app_switching:
-                            _next_key_fired = True
+                        or (next_key_combo_active))) and not freeze_app_switching:
+                            evdev_next_key_pressed = False
                             if 'left' in quadrant:
                                 idx_changed[left_drawing_queue] = True
                             else:
@@ -395,7 +394,6 @@ def app(args, base_apps, plugin_apps):
                             app_idx[quadrant] = (app_idx[quadrant] + 1) % len(quads[quadrant])
                             app = apps[app_idx[quadrant]]
                             base_time_map[quadrant][app['name']] = time.monotonic()
-            if _next_key_fired: next_key_fired = True
             left_args = [
                 top_left[app_idx['top-left']],
                 bottom_left[app_idx['bottom-left']],
