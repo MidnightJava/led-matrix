@@ -17,7 +17,19 @@ led-matrix-monitoring = {
 ```
 
 ## Changelog
-
+gn
+### v2.1.1 (2026-02-20)
+- **Weather widget enhancements**
+  - Support multiple weather measures (temp/condition, wind chill, wind speed/direction)
+  - Cycle between specified measures automatically
+  - Display Forecast Day and Forecast Hour with pixels stacked on each edge
+- **Additional hot keys**
+  - Alt-N: force next app without waiting for time slice to expire
+  - Alt-F: Freeze app switching
+  - Alt-U Unfreeze app switching
+- **Config File Selection**
+  - Use --config-file arg to override env var CONFIG_FILE
+  - Git-ignore config-local*.yaml, to support multiple custom config files
 ### v2.1.0 (2026-02-10)
 - **Systemd Service Refactoring**
   - The app now runs as a user service instead of a system service
