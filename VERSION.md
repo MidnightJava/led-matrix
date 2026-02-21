@@ -1,9 +1,9 @@
 # Version Information
 
 ## Current Version
-- **Version**: 2.0.0
+- **Version**: 2.1.1
 - **Branch**: main
-- **Date**: 2026-01-31
+- **Date**: 2026-02-20
 
 ## Usage with specific commit
 
