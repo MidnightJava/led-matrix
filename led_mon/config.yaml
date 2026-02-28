@@ -1,35 +1,37 @@
 # See config-README.md for help on using this config file.
-# To customize the settings, copy them to config-local.yaml. That file if present,
-# will be used in place of this one
+# To customize the settings, copy them to config-local.yaml.
+# That file, if present, will be used in place of this one.
 
 duration: 10
 
 quadrants:
   top-left:
   - app:
+    name: time
+    duration: 60
+    scope: panel
+    args:
+      fmt_24_hour: false
+      # use tz identifer as listed in the IANA database. See https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+      timezone:
+  - app:
     name: equalizer
-    duration: 30
+    duration: 60
     scope: panel
     dispose-fn: equalizer_dispose
     persistent-draw: true
     args:
       external-filter: false
+      # left|right|<name of quadrant>
       side: left
       border: false  
   - app:
-    name: time
-    duration: 30
-    scope: panel
-    args:
-      fmt_24_hour: false
-      timezone:
-  - app:
     name: cpu
-    duration: 30
+    duration: 60
     animate: false
   - app:
     name: snap
-    duration: 30
+    duration: 60
     animate: true
     scope: panel
     args:
@@ -38,8 +40,25 @@ quadrants:
       panel: left
   top-right:
   - app:
+    name: weather
+    duration: 60
+    scope: panel
+    args:
+      # imperial|metric|standard  (default metric)
+      units: imperial
+      # Include one or more of [temp_condition, wind_chill, wind]
+      measures: [temp_condition, wind_chill, wind]
+      measures-duration: 60
+      forecast: false
+      # 1-5
+      forecast_day: 1
+      # 0|3|6|9|12|15|18|21 (default 12)
+      forecast_hour: 12
+      # [arg-name, id-if-arg-true, id-if-arg-false]
+      id_key_override: [forecast, weather_forecast, weather_current]
+  - app:
     name: equalizer
-    duration: 30
+    duration: 60
     scope: panel
     dispose-fn: equalizer_dispose
     persistent-draw: true
@@ -48,24 +67,14 @@ quadrants:
       side: right
       border: false
   - app:
-    name: weather
-    duration: 30
-    scope: panel
-    args:
-      units: imperial
-      forecast: false
-      forecast_day: 1
-      forecast_hour: 12
-      id_key_override: [forecast, weather_forecast, weather_current]
-  - app:
     name: temp
-    duration: 30
+    duration: 60
     animate: false
     scope: quadrant
   - app:
     name: snap
     animate: true
-    duration: 30
+    duration: 60
     scope: panel
     args:
       file: every-third-row.json
@@ -74,34 +83,34 @@ quadrants:
   bottom-right:
   - app:
     name: noop1
-    duration: 30
+    duration: 60
     display: false
   - app:
     name: noop2
     display: false
-    duration: 30
+    duration: 60
   - app:
     name: fan
-    duration: 30
+    duration: 60
     animate: false
   - app:
     name: noop3
     display: false
-    duration: 30
+    duration: 60
   bottom-left:
   - app:
     name: noop1
-    duration: 30
+    duration: 60
     display: false
   - app:
     name: noop2
-    duration: 30
+    duration: 60
     display: false
   - app:
     name: mem-bat
-    duration: 30
+    duration: 60
     animate: false
   - app:
     name: noop3
-    duration: 30
+    duration: 60
     display: false

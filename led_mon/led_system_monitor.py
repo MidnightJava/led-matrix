@@ -1,4 +1,5 @@
 # Built In Dependencies
+from threading import Thread
 import time
 import queue
 import sys
@@ -19,6 +20,7 @@ from led_mon.shared_state import discover_led_devices
 # External Dependencies
 import numpy as np
 import evdev
+from evdev import ecodes
 from yaml import safe_load
 
 # Optional cross-platform keyboard input; on some Linux Wayland setups this may be unavailable
@@ -52,8 +54,14 @@ if not is_frozen():
     from dotenv import load_dotenv
     load_dotenv()
 
-KEY_I = ('KEY_I', 23)
 MODIFIER_KEYS = [('KEY_RIGHTALT', 100), ('KEY_LEFTALT', 56)]
+# Key press to show widget IDs
+KEY_I = ('KEY_I', 23)
+# Keypress to force advance to next widget without waiting for time slice to expire
+KEY_N = ('KEY_N', 49)
+# Used to ensure that advance to next widget from Alt-N keypress occurs only once until key is released and perssed again
+global freeze_app_switching
+freeze_app_switching = False
 
 def find_keyboard_device():
     """Auto-detect keyboard input device from /dev/input/event*"""
@@ -73,22 +81,54 @@ def find_keyboard_device():
         log.warning(f"Warning: Could not auto-detect keyboard device: {e}")
     return None
 
-def get_config():
-    # Check for CONFIG_FILE environment variable first (used by NixOS module)
-    config_file = os.environ.get('CONFIG_FILE', None)
+def evcode_keyloop():
+    global freeze_app_switching, evdev_next_key_pressed
+    kbd_path = find_keyboard_device()
+    keys_pressed = set()
+    if kbd_path:
+        try:
+            device = evdev.InputDevice(kbd_path)
+            for event in device.read_loop():
+                for event in device.read_loop():
+                    if event.type == ecodes.EV_KEY:
+                        if event.value == 1:
+                            keys_pressed.add(event.code)
+                        elif event.value == 0:
+                            keys_pressed.discard(event.code)
+
+                        if (ecodes.KEY_LEFTALT in keys_pressed or ecodes.KEY_RIGHTALT in keys_pressed) and ecodes.KEY_F in keys_pressed:
+                            freeze_app_switching = True
+                        elif (ecodes.KEY_LEFTALT in keys_pressed or ecodes.KEY_RIGHTALT in keys_pressed) and ecodes.KEY_U in keys_pressed:
+                            freeze_app_switching = False
+                            
+                        if (ecodes.KEY_LEFTALT in keys_pressed or ecodes.KEY_RIGHTALT in keys_pressed) and ecodes.KEY_N in keys_pressed:
+                            evdev_next_key_pressed = True
+        except (PermissionError, FileNotFoundError, OSError) as e:
+            log.warning(f"Warning: Cannot access keyboard device {kbd_path}: {e}")
+                
+Thread(target=evcode_keyloop, daemon=True).start()
+
+
+def get_config(args):
+    # Check for --config-file program arg first, and then CONFIG_FILE environment variable (used by NixOS module)
+    config_file = args.config_file
     if config_file:
-        log.debug(f"Using config file from CONFIG_FILE env var: {config_file}")
+        log.debug(f"Using config file from program arg --config-file: {config_file}")
     else:
-        # Fall back to config-local.yaml or config.yaml in current directory
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_name = 'config-local.yaml'
-        config_file = os.path.join(current_dir, config_file_name)
-        if os.path.exists(config_file):
-            log.debug(f"Using local config file {config_file}")
+        config_file = os.environ.get('CONFIG_FILE', None)
+        if config_file:
+            log.debug(f"Using config file from CONFIG_FILE env var: {config_file}")
         else:
-            config_file_name = 'config.yaml'
+            # Fall back to config-local.yaml or config.yaml in current directory
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            config_file_name = 'config-local.yaml'
             config_file = os.path.join(current_dir, config_file_name)
-            log.debug(f"Using default config file {config_file}")
+            if os.path.exists(config_file):
+                log.debug(f"Using local config file {config_file}")
+            else:
+                config_file_name = 'config.yaml'
+                config_file = os.path.join(current_dir, config_file_name)
+                log.debug(f"Using default config file {config_file}")
     with open(config_file, 'r') as f:
         return safe_load(f)
 
@@ -136,7 +176,7 @@ def app(args, base_apps, plugin_apps):
     ################################################################################
     ### Parse config file to enable control of apps by quadrant and by time slice ##
     ################################################################################
-    config = get_config()
+    config = get_config(args)
     duration = config['duration'] #Default config to be applied if not set in an app
     quads = config['quadrants']
     top_left,  bottom_left, top_right, bottom_right, = \
@@ -173,6 +213,10 @@ def app(args, base_apps, plugin_apps):
     alt_pressed = False
     global i_pressed
     i_pressed = False
+    global n_pressed
+    n_pressed = False
+    global evdev_next_key_pressed
+    evdev_next_key_pressed = False
     
     # Set up monitors and brightness parameters
     min_background_brightness = 12
@@ -234,13 +278,19 @@ def app(args, base_apps, plugin_apps):
     }
     
     def on_press(key):
-        global alt_pressed, i_pressed
+        global alt_pressed, i_pressed, n_pressed, freeze_app_switching
         # If pynput is unavailable, this callback will not be used; guard anyway
         if not PYNPUT_AVAILABLE:
             return
         try:
             if getattr(key, 'char', None) == 'i':
                 i_pressed = True
+            elif getattr(key, 'char', None) == 'n':
+                n_pressed = True
+            elif getattr(key, 'char', None) == 'f':
+                freeze_app_switching = True
+            elif getattr(key, 'char', None) == 'u':
+                freeze_app_switching = False
             elif Key is not None and key == Key.alt:
                 alt_pressed = True
         except Exception:
@@ -248,12 +298,15 @@ def app(args, base_apps, plugin_apps):
             pass
 
     def on_release(key):
-        global alt_pressed, i_pressed
+        global alt_pressed, i_pressed, n_pressed
         if not PYNPUT_AVAILABLE:
             return
         try:
+            
             if getattr(key, 'char', None) == 'i':
                 i_pressed = False
+            elif getattr(key, 'char', None) == 'n':
+                n_pressed = False
             elif Key is not None and key == Key.alt:
                 alt_pressed = False
             if Key is not None and key == Key.esc:
@@ -298,7 +351,7 @@ def app(args, base_apps, plugin_apps):
     global latch_key_combo
     latch_key_combo = False
     def render_iteration(args):
-        global latch_key_combo
+        global latch_key_combo, next_key_fired, freeze_app_switching, evdev_next_key_pressed
         try:
             screen_brightness = get_monitor_brightness()
             background_value = int(screen_brightness * (max_background_brightness - min_background_brightness) + min_background_brightness)
@@ -313,31 +366,34 @@ def app(args, base_apps, plugin_apps):
             
             # Check for key combo using both evdev (if available) and pynput
             active_keys = device.active_keys(verbose=True) if device else []
-            evdev_key_pressed = True if (MODIFIER_KEYS[0] in active_keys or MODIFIER_KEYS[1] in active_keys) and KEY_I in active_keys and device else False
-            pynput_key_pressed = i_pressed and alt_pressed
-            key_combo_active = (evdev_key_pressed or pynput_key_pressed) and not args.no_key_listener
-            shared_state.key_press_active = key_combo_active
+            evdev_id_key_pressed = True if (MODIFIER_KEYS[0] in active_keys or MODIFIER_KEYS[1] in active_keys) and KEY_I in active_keys and device else False
+            pynput_id_key_pressed = i_pressed and alt_pressed
+            pynput_next_key_pressed = n_pressed and alt_pressed
+            id_key_combo_active = (evdev_id_key_pressed or pynput_id_key_pressed) and not args.no_key_listener
+            shared_state.id_key_press_active = id_key_combo_active
+            next_key_combo_active = (evdev_next_key_pressed or pynput_next_key_pressed) and not args.no_key_listener
 
             # Track when an app is changed in either panel, used to manage animation state
             idx_changed = {
                 left_drawing_queue: False,
                 right_drawing_queue: False
             }
-            # A set of apps to be (potentialy) disposed
+            # A set of apps to be (potentially) disposed
             apps_to_dispose = []
             for quadrant, apps in quads.items():
                     app = apps[app_idx[quadrant]]
-                    if time.monotonic() - base_time_map[quadrant][app['name']] >= int(app_duration[app['name']]):
-                        if 'left' in quadrant:
-                            idx_changed[left_drawing_queue] = True
-                        else:
-                            idx_changed[right_drawing_queue] = True
-                        if 'dispose-fn' in app:
-                                apps_to_dispose.append(app)
-                        app_idx[quadrant] = (app_idx[quadrant] + 1) % len(quads[quadrant])
-                        app = apps[app_idx[quadrant]]
-                        base_time_map[quadrant][app['name']] = time.monotonic()
-
+                    if ((time.monotonic() - base_time_map[quadrant][app['name']] >= int(app_duration[app['name']]) \
+                        or (next_key_combo_active))) and not freeze_app_switching:
+                            evdev_next_key_pressed = False
+                            if 'left' in quadrant:
+                                idx_changed[left_drawing_queue] = True
+                            else:
+                                idx_changed[right_drawing_queue] = True
+                            if 'dispose-fn' in app:
+                                    apps_to_dispose.append(app)
+                            app_idx[quadrant] = (app_idx[quadrant] + 1) % len(quads[quadrant])
+                            app = apps[app_idx[quadrant]]
+                            base_time_map[quadrant][app['name']] = time.monotonic()
             left_args = [
                 top_left[app_idx['top-left']],
                 bottom_left[app_idx['bottom-left']],
@@ -352,7 +408,7 @@ def app(args, base_apps, plugin_apps):
             animating_left = left_args[0].get("animate", False) or left_args[1].get("animate", False)
             animating_right = right_args[0].get("animate", False) or right_args[1].get("animate", False)
             
-            if key_combo_active:
+            if id_key_combo_active:
                 # Show app IDs for each quadrant or panel
                 draw_outline_border(grid, background_value)
                 #If app takes up entire panel, we draw the ID differently
@@ -494,9 +550,9 @@ def main(args):
     mode_group.add_argument("--no-key-listener", "-nkl", action="store_true", help="Do not listen for key presses")
     mode_group.add_argument("--disable-plugins", "-dp", action="store_true", help="Do not load any plugin code")
     mode_group.add_argument("--list-apps", "-la", action="store_true", help="List the installed apps, and exit")
+    mode_group.add_argument("--config-file", "-cf", default=None, help="Absolute path to custom config file")
     
     args = parser.parse_args()
-    if args.no_key_listener: print("Key listener disabled")
     app(args, base_apps, plugin_apps)
 
 if __name__ == "__main__":

@@ -44,6 +44,9 @@ The `build_and_install.sh` script will automatically detect your Linux distribut
   * Turn on animation and define command arguments for apps
   * Specified via a yaml config file
 * Keyboard shortcut `ALT` + `I` identifies apps running in each quadrant by displaying abbreviated name
+* Keyboard shortcut `ALT` + `N` forces the display of the nexzt widget, without waiting for the time slice to complete
+* Keyboard shortcut `ALT` + `F` freezes app switching, cuasing the current widget to be displayed indefinitely
+* Keyboard shortcut `ALT` + `U` unfreezes app switching
 * Plugin framework supports simplified development of addiitonal LED Panel applications
 * Automatic detection of left and right LED panels
 * Automatic detection of keyboard device (for keyboard shortcut use)
@@ -221,7 +224,7 @@ sudo python3 -m led_mon.led_system_monitor
 
 ## Keyboard Input Access (Optional)
 
-For the Alt+I keyboard shortcut feature to work, the application needs read access to keyboard input devices:
+For the keyboard shortcut features to work, the application needs read access to keyboard input devices:
 
 ```bash
 # Add user to input group (be aware of security implications)
@@ -270,6 +273,9 @@ systemctl --user start|stop|restart|status fwledmonitor
 
 ## Keyboard Shortcut
 * Alt+I: displays app names in each quadrant while keys are pressed
+* Alt+N: displays the next widget without waiting for the time slice to complete
+* Alt+F: freezes app switching, causing the current widget to be displayed indefinitely
+* Alt+U: unfreezes app switching
 * Disable key listener with `--no-key-listener` program arg
 * To use the key listener, the app must have read permission on the keyboard device (e.g `/dev/input/event<n>`). T use the key listener, you need to add your user account to the `input` group and ensure there is a group read permission on the keyboard device. **NB:** Consider the implications of this. Any program running as a user in the `input` group will be able to capture your keystrokes.
 
@@ -314,7 +320,16 @@ Set arguments (`app -> ags`) for the `weather` app in the desired quadrant
     `forecast_hour: n`
   - Override the key used to display the app ID. This means if forecast is true, use weather_forecast, otherwise use weather_current
 
+  - Specify measures to show. If more than one is provided, the app will cycle through them indefinitely
+    
+    `measures: [temp_condition, wind_chill, wind]`
+  - Specify the number of seconds to display each measure.
+    
+    `measures-duration: 20`
+
     `id_key_override: [forecast, weather_forecast, weather_current]`
+
+    If `forecast` is true, the `Forecast Days` and `Forecast Hours` settings will be shown at the bottom left and right edges of the LED device. The `Forecast Days` value will be indicated by 1 to 5 pixels stacked from the bottom on the left edge. The `Forecast Hours` will be indicated by one to 8 pixels stacked from the bottom on the right edge, each representing the three-hour periods from 0 to 21. A hash mark will be drawn in the adjacent column at the fourth pixel, if lit, for ease of reading.
 
 ### Snapshot (built-in app, not a plugin):
 Configure the following arguments in the config file (`app -> args`)
