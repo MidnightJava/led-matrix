@@ -378,7 +378,7 @@ def app(args, base_apps, plugin_apps):
                 left_drawing_queue: False,
                 right_drawing_queue: False
             }
-            # A set of apps to be (potentialy) disposed
+            # A set of apps to be (potentially) disposed
             apps_to_dispose = []
             for quadrant, apps in quads.items():
                     app = apps[app_idx[quadrant]]

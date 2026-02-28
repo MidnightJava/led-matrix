@@ -128,17 +128,19 @@ class WeatherMonitor:
                         if condition in mist_like: condition= 'mist-like'
                         # Convert m/sec to km/hr (* 3,600 / 1,000)
                         if units != 'imperial': wind_speed *= 3.6
-                        forecast = Weather('Forecast', temp, feels_like, wind_speed, wind_speed_symbol, wind_dir, temp_symbol, condition)
-                        # print(f"Forecast weather for time {fc['dt_txt']}")
-                        return forecast
+                        forecast_weather = Weather('Forecast', temp, feels_like, wind_speed, wind_speed_symbol, wind_dir, temp_symbol, condition)
+                        log.debug(f"Forecast for time ({fc['dt_txt']}) : {forecast_weather}")
+                        log.debug(f"Forecast: {forecast_weather}")
+                        return forecast_weather
                 forecast = forecast['list'][-1]
                 # print(f"Forecast weather for latest time availabe: {forecast['dt_txt']}")
                 temp, feels_like, wind_speed, wind_speed_symbol, wind_dir, temp_symbol, condition = forecast['main']['temp'], forecast['main']['feels_like'], forecast['wind']['speed'], 'mi' if units == 'imperial' else 'km', forecast['wind']['deg'], temp_symbol, forecast['weather'][0]['main']
                 # Convert m/sec to km/hr (* 3,600 / 1,000)
                 if units != 'imperial': wind_speed *= 3.6
                 if condition in mist_like: condition= 'mist-like'
-                forecast = Weather('Forecast', temp, feels_like, wind_speed, wind_speed_symbol, wind_dir, temp_symbol, condition)
-                return forecast
+                forecast_weather = Weather('Forecast', temp, feels_like, wind_speed, wind_speed_symbol, wind_dir, temp_symbol, condition)
+                log.debug(f"Forecast for latest available time ({forecast['dt_txt']}) : {forecast_weather}")
+                return forecast_weather
             else:
                 current = requests.get(f"{OPENWEATHER_HOST}/data/2.5/weather?lat={loc[0]}&lon={loc[1]}&appid={weather_api_key}&units={units}").json()
 
@@ -147,6 +149,7 @@ class WeatherMonitor:
                 if units != 'imperial': wind_speed *= 3.6
                 if condition in mist_like: condition= 'mist-like'
                 weather = Weather('Current', temp, feels_like, wind_speed, wind_speed_symbol, wind_dir, temp_symbol, condition)
+                log.debug(f"Weather: {weather}")
                 return weather
         except Exception as e:
             log.error(f"Error getting weather: {e}")
@@ -215,7 +218,6 @@ def draw_weather(arg, grid, foreground_value, idx, **kwargs):
         gen = get_generator(**kwargs)
         weather_values = get_weather_values(weather, next(gen))
         draw_app(arg, grid, weather_values, foreground_value, idx)
-        # log.debug(f"Weather: {weather_values}")
         if kwargs.get("forecast", None):
             draw_fc_period_indicator(grid, foreground_value, kwargs.get("forecast_day", 1), kwargs.get("forecast_hour", 12))
     else:
