@@ -60,6 +60,10 @@ quadrants:
     args:
       # imperial|metric|standard  (default metric)
       units: imperial
+      # location look-up via country-specific zip and ISO 3166 digraph code
+      #zip_info: ["your zip", "country code"]
+      # location look-up via latitude and longitude
+      #lat_lon: [<lat>, <lon>]
       # Include one or more of [temp_condition, wind_chill, wind]
       measures: [temp_condition, wind_chill, wind]
       measures-duration: 60
