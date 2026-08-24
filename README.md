@@ -296,7 +296,7 @@ Set arguments (`app -> ags`) for the `weather` app in the desired quadrant
 
     3) Set env var IP_LOCATE_API_KEY in `.env`. Get a free API key from https://iplocate.io
        
-  - Display temperature in Celsius, Farenheit, or Kelinv. Default is metric
+  - Display temperature in Celsius, Farenheit, or Kelvin. Default is metric
 
     `units: imperial|metric|standard`
   - If weather is configured with `scope: panel`, it owns the full panel while active and the sibling quadrant on that side is suppressed by the scheduler.
