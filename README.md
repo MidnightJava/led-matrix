@@ -266,7 +266,7 @@ systemctl --user start|stop|restart|status fwledmonitor
 * See `plugins/plugin-README.md` for instructions
 
 ## Plugin Configuration and Dependencies
-See `config-README.md` for general configuration instructions. Here we provide plugin-specific configuration, dependency, and other information. Plugins that have no special configuration or depenency requirements are not adderssed here.
+See `led_mon/config-README.md` for general configuration instructions. Here we provide plugin-specific configuration, dependency, and other information. Plugins that have no special configuration or depenency requirements are not adderssed here.
 
 ### Time (provided by `time_weather_plugin.py`):
 Configure the following arguments in the config file (`app->args`)
