@@ -62,7 +62,7 @@ quadrants:
       units: imperial
       # Include one or more of [temp_condition, wind_chill, wind]
       measures: [temp_condition, wind_chill, wind]
-      measures-duration: 60
+      measures-duration: 20
       forecast: false
       # 1-5
       forecast_day: 1
